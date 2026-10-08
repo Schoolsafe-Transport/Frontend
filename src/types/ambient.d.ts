@@ -45,11 +45,4 @@ declare module 'socket.io-client' {
   export function io(uri?: string, opts?: any): Socket;
 }
 
-declare module 'lucide-react' {
-  export const Shield: any;
-  export const Lock: any;
-  export const User: any;
-  export const Check: any;
-  export const AlertCircle: any;
-  [key: string]: any;
-}
+declare module 'lucide-react';
