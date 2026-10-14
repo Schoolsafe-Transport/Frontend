@@ -15,7 +15,6 @@ import {
   Search,
   MessageSquare,
   CheckCircle2,
-  Bus,
   ArrowRight,
   Sparkles,
   Building2,

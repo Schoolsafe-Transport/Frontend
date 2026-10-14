@@ -1,6 +1,6 @@
 import { useState, FC, FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Shield, AlertCircle, ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowRight } from 'lucide-react';
 
 interface LoginViewProps {
   onSwitchToRegister: () => void;

@@ -27,7 +27,10 @@ import {
   UserCheck,
   FileCheck,
   History,
+  Search,
 } from 'lucide-react';
+import { ParentMarketplaceTabs } from '../components/marketplace/ParentMarketplaceTabs';
+import { ProviderMarketplaceTabs } from '../components/marketplace/ProviderMarketplaceTabs';
 
 export const DashboardView: FC = () => {
   const { user, logout } = useAuth();
@@ -124,13 +127,15 @@ export const DashboardView: FC = () => {
    ========================================================================= */
 const ParentDashboardView: FC<{ user: any }> = ({ user }) => {
   const [activeTab, setActiveTab] = useState<
-    'Dashboard' | 'My Children' | 'Transportation' | 'Trips' | 'Notifications' | 'Payments' | 'Safety' | 'Profile'
+    'Dashboard' | 'My Children' | 'Find Transportation' | 'My Requests' | 'My Transportation' | 'Trips' | 'Notifications' | 'Payments' | 'Safety' | 'Profile'
   >('Dashboard');
 
-  const tabs: Array<'Dashboard' | 'My Children' | 'Transportation' | 'Trips' | 'Notifications' | 'Payments' | 'Safety' | 'Profile'> = [
+  const tabs: Array<'Dashboard' | 'My Children' | 'Find Transportation' | 'My Requests' | 'My Transportation' | 'Trips' | 'Notifications' | 'Payments' | 'Safety' | 'Profile'> = [
     'Dashboard',
     'My Children',
-    'Transportation',
+    'Find Transportation',
+    'My Requests',
+    'My Transportation',
     'Trips',
     'Notifications',
     'Payments',
@@ -152,7 +157,9 @@ const ParentDashboardView: FC<{ user: any }> = ({ user }) => {
               >
                 {tab === 'Dashboard' && <BarChart3 size={16} />}
                 {tab === 'My Children' && <Users size={16} />}
-                {tab === 'Transportation' && <Bus size={16} />}
+                {tab === 'Find Transportation' && <Search size={16} />}
+                {tab === 'My Requests' && <FileText size={16} />}
+                {tab === 'My Transportation' && <Bus size={16} />}
                 {tab === 'Trips' && <MapPin size={16} />}
                 {tab === 'Notifications' && <Bell size={16} />}
                 {tab === 'Payments' && <CreditCard size={16} />}
@@ -393,42 +400,14 @@ const ParentDashboardView: FC<{ user: any }> = ({ user }) => {
           </div>
         )}
 
-        {activeTab === 'Transportation' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Transportation Provider & Route Details</h3>
-            </div>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Route</th>
-                  <th>Destination School</th>
-                  <th>Operator / Driver</th>
-                  <th>Vehicle</th>
-                  <th>Monthly Rate</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Route #04 (Bole Area)</td>
-                  <td>Cambridge Academy</td>
-                  <td>Dawit Abebe</td>
-                  <td>Toyota HiAce (3-A2849)</td>
-                  <td>$75 / month</td>
-                  <td><span className="badge-status active">Active</span></td>
-                </tr>
-                <tr>
-                  <td>Route #12 (Kazanchis Run)</td>
-                  <td>Sandford International</td>
-                  <td>Yonas Tesfaye</td>
-                  <td>Toyota Coaster (3-B9912)</td>
-                  <td>$85 / month</td>
-                  <td><span className="badge-status pending">Seat Inquired</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        {(activeTab === 'Find Transportation' ||
+          activeTab === 'My Requests' ||
+          activeTab === 'My Transportation') && (
+          <ParentMarketplaceTabs
+            activeTab={activeTab}
+            onNavigateTab={(tab) => setActiveTab(tab)}
+            user={user}
+          />
         )}
 
         {activeTab === 'Trips' && (
@@ -625,14 +604,15 @@ const ParentDashboardView: FC<{ user: any }> = ({ user }) => {
    ========================================================================= */
 const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
   const [activeTab, setActiveTab] = useState<
-    'Dashboard' | 'Fleet' | 'Routes' | 'Requests' | 'Trips' | 'Earnings' | 'Verification' | 'Profile'
+    'Dashboard' | 'Fleet' | 'Routes' | 'Requests' | 'Passengers' | 'Trips' | 'Earnings' | 'Verification' | 'Profile'
   >('Dashboard');
 
-  const tabs: Array<'Dashboard' | 'Fleet' | 'Routes' | 'Requests' | 'Trips' | 'Earnings' | 'Verification' | 'Profile'> = [
+  const tabs: Array<'Dashboard' | 'Fleet' | 'Routes' | 'Requests' | 'Passengers' | 'Trips' | 'Earnings' | 'Verification' | 'Profile'> = [
     'Dashboard',
     'Fleet',
     'Routes',
     'Requests',
+    'Passengers',
     'Trips',
     'Earnings',
     'Verification',
@@ -655,6 +635,7 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
                 {tab === 'Fleet' && <Car size={16} />}
                 {tab === 'Routes' && <MapPin size={16} />}
                 {tab === 'Requests' && <Users size={16} />}
+                {tab === 'Passengers' && <Users size={16} />}
                 {tab === 'Trips' && <Bus size={16} />}
                 {tab === 'Earnings' && <DollarSign size={16} />}
                 {tab === 'Verification' && <FileCheck size={16} />}
@@ -900,39 +881,8 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
           </div>
         )}
 
-        {activeTab === 'Requests' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Seat Requests from Parents</h3>
-            </div>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Parent</th>
-                  <th>Student</th>
-                  <th>Grade</th>
-                  <th>Route</th>
-                  <th>Pickup Address</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Abebech Tadesse</td>
-                  <td>Samuel Tadesse</td>
-                  <td>Grade 4</td>
-                  <td>Route #04 (Bole)</td>
-                  <td>Atlas Junction, House 42</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button className="btn btn-primary btn-sm">Approve</button>
-                      <button className="btn btn-secondary btn-sm">Decline</button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        {(activeTab === 'Requests' || activeTab === 'Passengers') && (
+          <ProviderMarketplaceTabs activeTab={activeTab} user={user} />
         )}
 
         {activeTab === 'Trips' && (

@@ -1,4 +1,5 @@
 export * from './auth';
+export * from './transportation';
 
 export interface ServerHealthResponse {
   status: string;

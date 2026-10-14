@@ -1,7 +1,7 @@
 import { useState, FC, ReactNode, FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types/auth';
-import { Shield, Users, Bus, Building2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Users, Bus, Building2, AlertCircle, ArrowLeft } from 'lucide-react';
 
 interface RegisterViewProps {
   initialRole?: UserRole;

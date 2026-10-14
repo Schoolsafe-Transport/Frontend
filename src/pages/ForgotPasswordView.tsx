@@ -1,6 +1,6 @@
 import { useState, FC, FormEvent } from 'react';
 import { forgotPasswordApi, resetPasswordApi } from '../services/api';
-import { KeyRound, CheckCircle2, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface ForgotPasswordViewProps {
   onSwitchToLogin: () => void;

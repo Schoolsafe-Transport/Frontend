@@ -109,3 +109,120 @@ export const testProviderRoute = async () => {
   const response = await apiClient.get('/auth/provider-only');
   return response.data;
 };
+
+// ==========================================
+// Transportation Marketplace API Calls
+// ==========================================
+
+export const searchTransportationApi = async (params: {
+  school?: string;
+  schoolBranch?: string;
+  pickupArea?: string;
+  route?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  minSeats?: number;
+  minRating?: number;
+  serviceType?: string;
+  verified?: boolean;
+}) => {
+  const response = await apiClient.get('/transportation/search', { params });
+  return response.data.data;
+};
+
+export const getRouteDetailsApi = async (routeId: string) => {
+  const response = await apiClient.get(`/transportation/routes/${routeId}`);
+  return response.data.data;
+};
+
+export const getStudentsApi = async () => {
+  const response = await apiClient.get('/transportation/students');
+  return response.data.data;
+};
+
+export const createStudentApi = async (studentData: {
+  firstName: string;
+  lastName: string;
+  grade?: string;
+  schoolName: string;
+  schoolBranch?: string;
+  homeAddress?: string;
+  emergencyPhone?: string;
+}) => {
+  const response = await apiClient.post('/transportation/students', studentData);
+  return response.data.data;
+};
+
+export const createTransportationRequestApi = async (payload: {
+  studentId: string;
+  routeId: string;
+  pickupStopId?: string;
+  pickupStopName: string;
+  preferredStartDate: string;
+  proposedPrice?: number;
+  message?: string;
+}) => {
+  const response = await apiClient.post('/transportation/requests', payload);
+  return response.data.data;
+};
+
+export const getTransportationRequestsApi = async (status?: string) => {
+  const response = await apiClient.get('/transportation/requests', {
+    params: status ? { status } : undefined,
+  });
+  return response.data.data;
+};
+
+export const getRequestDetailsApi = async (requestId: string) => {
+  const response = await apiClient.get(`/transportation/requests/${requestId}`);
+  return response.data.data;
+};
+
+export const counterOfferApi = async (requestId: string, amount: number, message?: string) => {
+  const response = await apiClient.post(`/transportation/requests/${requestId}/counter`, {
+    amount,
+    message,
+  });
+  return response.data.data;
+};
+
+export const acceptOfferApi = async (requestId: string, offerId?: string) => {
+  const response = await apiClient.post(`/transportation/requests/${requestId}/accept-offer`, {
+    offerId,
+  });
+  return response.data.data;
+};
+
+export const acceptRequestApi = async (requestId: string) => {
+  const response = await apiClient.post(`/transportation/requests/${requestId}/accept`);
+  return response.data.data;
+};
+
+export const rejectRequestApi = async (requestId: string, reason?: string) => {
+  const response = await apiClient.post(`/transportation/requests/${requestId}/reject`, { reason });
+  return response.data;
+};
+
+export const getMyAgreementsApi = async () => {
+  const response = await apiClient.get('/transportation/my-agreements');
+  return response.data.data;
+};
+
+export const cancelAgreementApi = async (agreementId: string, reason?: string) => {
+  const response = await apiClient.post(`/transportation/agreements/${agreementId}/cancel`, {
+    reason,
+  });
+  return response.data.data;
+};
+
+export const payAgreementApi = async (agreementId: string, paymentMethod: string = 'TELEBIRR_SIMULATED') => {
+  const response = await apiClient.post(`/transportation/agreements/${agreementId}/pay`, {
+    paymentMethod,
+  });
+  return response.data.data;
+};
+
+export const getActivePassengersApi = async () => {
+  const response = await apiClient.get('/transportation/passengers');
+  return response.data.data;
+};
