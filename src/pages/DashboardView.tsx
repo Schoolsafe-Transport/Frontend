@@ -31,9 +31,18 @@ import {
 } from 'lucide-react';
 import { ParentMarketplaceTabs } from '../components/marketplace/ParentMarketplaceTabs';
 import { ProviderMarketplaceTabs } from '../components/marketplace/ProviderMarketplaceTabs';
+import { NotificationsPanel } from '../components/dashboard/NotificationsPanel';
+import { ProviderFleetPanel } from '../components/dashboard/ProviderFleetPanel';
+import { ProviderRoutesPanel } from '../components/dashboard/ProviderRoutesPanel';
+import { TripsAndBoardingPanel } from '../components/dashboard/TripsAndBoardingPanel';
+import { ParentSafetyPanel } from '../components/dashboard/ParentSafetyPanel';
+import { UserProfilePanel } from '../components/dashboard/UserProfilePanel';
+import { ActiveAdBanner } from '../components/dashboard/ActiveAdBanner';
+import { FaydaVerificationModal } from '../components/dashboard/FaydaVerificationModal';
 
 export const DashboardView: FC = () => {
   const { user, logout } = useAuth();
+  const [showFaydaModal, setShowFaydaModal] = useState(false);
 
   if (!user) return null;
 
@@ -81,7 +90,7 @@ export const DashboardView: FC = () => {
                 <span className="role-pill">
                   {actorDisplayName}
                 </span>
-                {user.isVerified && (
+                {user.isVerified ? (
                   <span
                     style={{
                       display: 'inline-flex',
@@ -97,6 +106,25 @@ export const DashboardView: FC = () => {
                   >
                     <CheckCircle2 size={12} /> Verified
                   </span>
+                ) : (
+                  <button
+                    onClick={() => setShowFaydaModal(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: '#B45309',
+                      backgroundColor: '#FEF3C7',
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: 'var(--radius-full)',
+                      border: '1px solid #FCD34D',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <ShieldCheck size={12} /> Verify Fayda ID
+                  </button>
                 )}
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
@@ -117,6 +145,12 @@ export const DashboardView: FC = () => {
       {actorType === 'BUSINESS' && <BusinessDashboardView user={user} />}
       {actorType === 'ADMIN' && <AdminDashboardView user={user} />}
       {actorType === 'STUDENT' && <StudentDashboardView user={user} />}
+
+      <FaydaVerificationModal
+        isOpen={showFaydaModal}
+        onClose={() => setShowFaydaModal(false)}
+        onVerified={() => window.location.reload()}
+      />
     </div>
   );
 };
@@ -175,6 +209,8 @@ const ParentDashboardView: FC<{ user: any }> = ({ user }) => {
       <div className="dashboard-main">
         {activeTab === 'Dashboard' && (
           <>
+            <ActiveAdBanner />
+
             {/* Quick Metrics */}
             <div className="stats-grid">
               <div className="stat-card">
@@ -411,73 +447,11 @@ const ParentDashboardView: FC<{ user: any }> = ({ user }) => {
         )}
 
         {activeTab === 'Trips' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Daily Trip Schedule & History</h3>
-            </div>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Trip Type</th>
-                  <th>Passenger</th>
-                  <th>Pickup Time</th>
-                  <th>Drop-Off Time</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Today (Morning)</td>
-                  <td>Morning Pickup</td>
-                  <td>Maya & Noah</td>
-                  <td>07:18 AM</td>
-                  <td>07:45 AM (Est)</td>
-                  <td><span className="badge-status active">In Transit</span></td>
-                </tr>
-                <tr>
-                  <td>Yesterday (Afternoon)</td>
-                  <td>School Return</td>
-                  <td>Maya & Noah</td>
-                  <td>15:35 PM</td>
-                  <td>16:10 PM</td>
-                  <td><span className="badge-status active">Completed</span></td>
-                </tr>
-                <tr>
-                  <td>Yesterday (Morning)</td>
-                  <td>Morning Pickup</td>
-                  <td>Maya & Noah</td>
-                  <td>07:16 AM</td>
-                  <td>07:42 AM</td>
-                  <td><span className="badge-status active">Completed</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <TripsAndBoardingPanel user={user} isParent={true} />
         )}
 
         {activeTab === 'Notifications' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Notifications Feed</h3>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              <div style={{ padding: '1rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
-                <div style={{ fontWeight: 600 }}>Boarding Alert: Maya Bekele</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginTop: '0.25rem' }}>
-                  Student successfully scanned in at Bole Medhanealem stop by driver Dawit.
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>Today at 07:18 AM</div>
-              </div>
-              <div style={{ padding: '1rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
-                <div style={{ fontWeight: 600 }}>Trip Departure Notice</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginTop: '0.25rem' }}>
-                  Route #04 morning transit has departed the primary terminal on schedule.
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>Today at 07:05 AM</div>
-              </div>
-            </div>
-          </div>
+          <NotificationsPanel user={user} />
         )}
 
         {activeTab === 'Payments' && (
@@ -522,76 +496,11 @@ const ParentDashboardView: FC<{ user: any }> = ({ user }) => {
         )}
 
         {activeTab === 'Safety' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <div>
-                <h3 className="panel-title">Child Safety & Emergency Protocol</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: 0 }}>
-                  Immediate safety reporting, verified driver records, and authorized pickup delegates
-                </p>
-              </div>
-              <button className="btn btn-primary btn-sm" style={{ backgroundColor: 'var(--color-danger)' }}>
-                Report Safety Concern
-              </button>
-            </div>
-            <div className="grid-2">
-              <div style={{ padding: '1.25rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
-                <h4 style={{ marginBottom: '0.5rem', color: 'var(--color-primary)' }}>Authorized Pickup Contacts</h4>
-                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
-                  Only authorized adults recorded here are permitted to receive children at designated drop-off stops.
-                </p>
-                <div style={{ fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ padding: '0.5rem', backgroundColor: '#F8FAFC', borderRadius: '6px' }}>
-                    <strong>Rahel Bekele (Parent)</strong> • +251 91 123 4567
-                  </div>
-                  <div style={{ padding: '0.5rem', backgroundColor: '#F8FAFC', borderRadius: '6px' }}>
-                    <strong>Yared Bekele (Guardian)</strong> • +251 91 765 4321
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ padding: '1.25rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
-                <h4 style={{ marginBottom: '0.5rem', color: 'var(--color-primary)' }}>Provider Verification Status</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.85rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-success)' }}>
-                    <ShieldCheck size={18} /> Driver Background Investigation Cleared
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-success)' }}>
-                    <ShieldCheck size={18} /> Commercial Vehicle Safety Inspection Valid
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-success)' }}>
-                    <ShieldCheck size={18} /> Passenger Transit Insurance Active
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ParentSafetyPanel user={user} />
         )}
 
         {activeTab === 'Profile' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Parent / Guardian Profile</h3>
-            </div>
-            <div style={{ maxWidth: '600px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '1rem', fontSize: '0.925rem', marginBottom: '1rem' }}>
-                <span style={{ color: 'var(--color-text-secondary)' }}>Full Name:</span>
-                <span style={{ fontWeight: 600 }}>{user.firstName} {user.lastName}</span>
-
-                <span style={{ color: 'var(--color-text-secondary)' }}>Account Role:</span>
-                <span style={{ fontWeight: 600 }}>Parent / Guardian</span>
-
-                <span style={{ color: 'var(--color-text-secondary)' }}>Email:</span>
-                <span>{user.email}</span>
-
-                <span style={{ color: 'var(--color-text-secondary)' }}>Phone:</span>
-                <span>{user.phone || 'Not provided'}</span>
-
-                <span style={{ color: 'var(--color-text-secondary)' }}>Registered On:</span>
-                <span>{new Date(user.createdAt).toLocaleDateString()}</span>
-              </div>
-            </div>
-          </div>
+          <UserProfilePanel user={user} />
         )}
       </div>
     </div>
@@ -604,16 +513,17 @@ const ParentDashboardView: FC<{ user: any }> = ({ user }) => {
    ========================================================================= */
 const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
   const [activeTab, setActiveTab] = useState<
-    'Dashboard' | 'Fleet' | 'Routes' | 'Requests' | 'Passengers' | 'Trips' | 'Earnings' | 'Verification' | 'Profile'
+    'Dashboard' | 'Fleet' | 'Routes' | 'Requests' | 'Passengers' | 'Trips' | 'Notifications' | 'Earnings' | 'Verification' | 'Profile'
   >('Dashboard');
 
-  const tabs: Array<'Dashboard' | 'Fleet' | 'Routes' | 'Requests' | 'Passengers' | 'Trips' | 'Earnings' | 'Verification' | 'Profile'> = [
+  const tabs: Array<'Dashboard' | 'Fleet' | 'Routes' | 'Requests' | 'Passengers' | 'Trips' | 'Notifications' | 'Earnings' | 'Verification' | 'Profile'> = [
     'Dashboard',
     'Fleet',
     'Routes',
     'Requests',
     'Passengers',
     'Trips',
+    'Notifications',
     'Earnings',
     'Verification',
     'Profile',
@@ -637,6 +547,7 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
                 {tab === 'Requests' && <Users size={16} />}
                 {tab === 'Passengers' && <Users size={16} />}
                 {tab === 'Trips' && <Bus size={16} />}
+                {tab === 'Notifications' && <Bell size={16} />}
                 {tab === 'Earnings' && <DollarSign size={16} />}
                 {tab === 'Verification' && <FileCheck size={16} />}
                 {tab === 'Profile' && <UserCheck size={16} />}
@@ -797,88 +708,11 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
         )}
 
         {activeTab === 'Fleet' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <div>
-                <h3 className="panel-title">Vehicle Fleet Management</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: 0 }}>
-                  Manage registered vehicles, seating capacities, and annual inspection records
-                </p>
-              </div>
-              <button className="btn btn-primary btn-sm" style={{ display: 'inline-flex', gap: '0.35rem' }}>
-                <Plus size={16} /> Register New Vehicle
-              </button>
-            </div>
-
-            <div className="grid-2">
-              <div style={{ padding: '1.25rem', border: '1px solid var(--color-border)', borderRadius: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <h4 style={{ color: 'var(--color-primary)' }}>Toyota HiAce Minibus</h4>
-                  <span className="badge-status active">Active & Verified</span>
-                </div>
-                <div style={{ fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <div><strong>License Plate:</strong> Code 3-A2849</div>
-                  <div><strong>Capacity:</strong> 18 Passenger Seats (18 Booked)</div>
-                  <div><strong>Assigned Driver:</strong> Dawit Abebe</div>
-                  <div><strong>Safety Inspection:</strong> Valid until August 2027</div>
-                </div>
-              </div>
-
-              <div style={{ padding: '1.25rem', border: '1px solid var(--color-border)', borderRadius: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <h4 style={{ color: 'var(--color-primary)' }}>Toyota Coaster Bus</h4>
-                  <span className="badge-status active">Active & Verified</span>
-                </div>
-                <div style={{ fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <div><strong>License Plate:</strong> Code 3-B9912</div>
-                  <div><strong>Capacity:</strong> 30 Passenger Seats (26 Booked, 4 Available)</div>
-                  <div><strong>Assigned Driver:</strong> Yonas Tesfaye</div>
-                  <div><strong>Safety Inspection:</strong> Valid until November 2027</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ProviderFleetPanel user={user} />
         )}
 
         {activeTab === 'Routes' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Defined School Transportation Routes</h3>
-              <button className="btn btn-primary btn-sm">
-                <Plus size={16} /> Create New Route
-              </button>
-            </div>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Route Name</th>
-                  <th>Destination School</th>
-                  <th>Service Timing</th>
-                  <th>Available Seats</th>
-                  <th>Monthly Price</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Route #04 (Bole ➔ Cambridge)</td>
-                  <td>Cambridge Academy</td>
-                  <td>Morning (07:00) / Afternoon (15:30)</td>
-                  <td>0 Available (Full)</td>
-                  <td>$75 / seat</td>
-                  <td><span className="badge-status active">Active</span></td>
-                </tr>
-                <tr>
-                  <td>Route #12 (Kazanchis ➔ Sandford)</td>
-                  <td>Sandford International</td>
-                  <td>Morning (07:15) / Afternoon (15:45)</td>
-                  <td>4 Seats Available</td>
-                  <td>$85 / seat</td>
-                  <td><span className="badge-status active">Active</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <ProviderRoutesPanel user={user} />
         )}
 
         {(activeTab === 'Requests' || activeTab === 'Passengers') && (
@@ -886,23 +720,11 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
         )}
 
         {activeTab === 'Trips' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Daily Trip Control & Student Boarding</h3>
-            </div>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
-              Record student check-ins and drop-offs during active transport runs.
-            </p>
-            <div style={{ padding: '1.25rem', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h4 style={{ color: 'var(--color-primary)' }}>Active Trip: Route #04 Morning Run</h4>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>18 Students assigned • 18 Checked In</div>
-                </div>
-                <button className="btn btn-primary btn-sm">Complete Trip at Cambridge Academy</button>
-              </div>
-            </div>
-          </div>
+          <TripsAndBoardingPanel user={user} isParent={false} />
+        )}
+
+        {activeTab === 'Notifications' && (
+          <NotificationsPanel user={user} />
         )}
 
         {activeTab === 'Earnings' && (
@@ -953,24 +775,7 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
         )}
 
         {activeTab === 'Profile' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Transport Provider / Driver Profile</h3>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '1rem', fontSize: '0.925rem' }}>
-              <span style={{ color: 'var(--color-text-secondary)' }}>Operator Name:</span>
-              <span style={{ fontWeight: 600 }}>{user.firstName} {user.lastName}</span>
-
-              <span style={{ color: 'var(--color-text-secondary)' }}>Role:</span>
-              <span style={{ fontWeight: 600 }}>Transport Provider / Driver</span>
-
-              <span style={{ color: 'var(--color-text-secondary)' }}>Email:</span>
-              <span>{user.email}</span>
-
-              <span style={{ color: 'var(--color-text-secondary)' }}>Phone:</span>
-              <span>{user.phone || 'Not provided'}</span>
-            </div>
-          </div>
+          <UserProfilePanel user={user} />
         )}
       </div>
     </div>
@@ -1183,18 +988,7 @@ const BusinessDashboardView: FC<{ user: any }> = ({ user }) => {
         )}
 
         {activeTab === 'Profile' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Account Representative</h3>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '1rem', fontSize: '0.925rem' }}>
-              <span style={{ color: 'var(--color-text-secondary)' }}>Representative:</span>
-              <span style={{ fontWeight: 600 }}>{user.firstName} {user.lastName}</span>
-
-              <span style={{ color: 'var(--color-text-secondary)' }}>Account Email:</span>
-              <span>{user.email}</span>
-            </div>
-          </div>
+          <UserProfilePanel user={user} />
         )}
       </div>
     </div>

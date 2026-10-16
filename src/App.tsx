@@ -1,13 +1,19 @@
-import { useState, FC } from 'react';
+import { useState, useEffect, FC } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginView } from './pages/LoginView';
 import { RegisterView } from './pages/RegisterView';
 import { ForgotPasswordView } from './pages/ForgotPasswordView';
 import { DashboardView } from './pages/DashboardView';
+import { AboutView } from './pages/AboutView';
+import { ContactView } from './pages/ContactView';
+import { HowItWorksView } from './pages/HowItWorksView';
+import { SafetyView } from './pages/SafetyView';
+import { ProvidersView } from './pages/ProvidersView';
+import { BusinessesView } from './pages/BusinessesView';
+import { PrivacyPolicyView, TermsOfServiceView, HelpCenterView } from './pages/PolicyViews';
 import { HomeImageSlider } from './components/HomeImageSlider';
 import { UserRole } from './types/auth';
 import {
-  Shield,
   ShieldCheck,
   MapPin,
   Clock,
@@ -24,47 +30,145 @@ import {
   Users,
 } from 'lucide-react';
 
+export type ViewState =
+  | 'LANDING'
+  | 'HOW_IT_WORKS'
+  | 'SAFETY'
+  | 'PROVIDERS'
+  | 'BUSINESSES'
+  | 'ABOUT'
+  | 'CONTACT'
+  | 'PRIVACY'
+  | 'TERMS'
+  | 'HELP'
+  | 'LOGIN'
+  | 'REGISTER'
+  | 'FORGOT_PASSWORD';
+
+export const getViewFromPath = (pathname: string): ViewState => {
+  const cleanPath = pathname.toLowerCase().replace(/\/$/, '') || '/';
+  switch (cleanPath) {
+    case '/about':
+      return 'ABOUT';
+    case '/contact':
+      return 'CONTACT';
+    case '/how-it-works':
+    case '/howitworks':
+      return 'HOW_IT_WORKS';
+    case '/safety':
+      return 'SAFETY';
+    case '/providers':
+    case '/for-providers':
+      return 'PROVIDERS';
+    case '/businesses':
+    case '/for-businesses':
+    case '/advertising':
+      return 'BUSINESSES';
+    case '/privacy':
+    case '/privacy-policy':
+      return 'PRIVACY';
+    case '/terms':
+    case '/terms-of-service':
+      return 'TERMS';
+    case '/help':
+    case '/help-center':
+      return 'HELP';
+    case '/login':
+    case '/signin':
+      return 'LOGIN';
+    case '/register':
+    case '/signup':
+      return 'REGISTER';
+    case '/forgot-password':
+      return 'FORGOT_PASSWORD';
+    default:
+      return 'LANDING';
+  }
+};
+
+export const getPathFromView = (view: ViewState): string => {
+  switch (view) {
+    case 'ABOUT':
+      return '/about';
+    case 'CONTACT':
+      return '/contact';
+    case 'HOW_IT_WORKS':
+      return '/how-it-works';
+    case 'SAFETY':
+      return '/safety';
+    case 'PROVIDERS':
+      return '/providers';
+    case 'BUSINESSES':
+      return '/businesses';
+    case 'PRIVACY':
+      return '/privacy';
+    case 'TERMS':
+      return '/terms';
+    case 'HELP':
+      return '/help';
+    case 'LOGIN':
+      return '/login';
+    case 'REGISTER':
+      return '/register';
+    case 'FORGOT_PASSWORD':
+      return '/forgot-password';
+    case 'LANDING':
+    default:
+      return '/';
+  }
+};
+
 const MainContent: FC = () => {
   const { user } = useAuth();
-  const [currentView, setCurrentView] = useState<'LANDING' | 'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD'>('LANDING');
+  const [currentView, setCurrentView] = useState<ViewState>(() => {
+    if (typeof window !== 'undefined') {
+      return getViewFromPath(window.location.pathname);
+    }
+    return 'LANDING';
+  });
   const [selectedInitialRole, setSelectedInitialRole] = useState<UserRole>('PARENT');
 
-  const openRegister = (role: UserRole = 'PARENT') => {
-    setSelectedInitialRole(role);
-    setCurrentView('REGISTER');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const openLogin = () => {
-    setCurrentView('LOGIN');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const scrollToSection = (id: string) => {
-    if (currentView !== 'LANDING') {
-      setCurrentView('LANDING');
-      setTimeout(() => {
-        const el = document.getElementById(id);
-        el?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    } else {
-      const el = document.getElementById(id);
-      el?.scrollIntoView({ behavior: 'smooth' });
+  const navigateTo = (view: ViewState, role?: UserRole) => {
+    if (role) {
+      setSelectedInitialRole(role);
     }
+    setCurrentView(view);
+    const targetPath = getPathFromView(view);
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ view }, '', targetPath);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const matched = getViewFromPath(window.location.pathname);
+      setCurrentView(matched);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const openRegister = (role: UserRole = 'PARENT') => {
+    navigateTo('REGISTER', role);
+  };
+
+  const openLogin = () => navigateTo('LOGIN');
+  const openAbout = () => navigateTo('ABOUT');
+  const openContact = () => navigateTo('CONTACT');
+  const openPrivacy = () => navigateTo('PRIVACY');
+  const openTerms = () => navigateTo('TERMS');
+  const openHelp = () => navigateTo('HELP');
+  const openHome = () => navigateTo('LANDING');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* 3. Header & Navigation Bar */}
       <header className="navbar-clean">
         <div className="container navbar-inner">
-          <div
-            className="brand-link"
-            onClick={() => {
-              setCurrentView('LANDING');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          >
+          <div className="brand-link" onClick={openHome} role="button" tabIndex={0}>
             <div className="brand-logo-wrap">
               <img src="/logo-shield.png" alt="SchoolSafe Logo" className="brand-logo-img" />
             </div>
@@ -75,42 +179,70 @@ const MainContent: FC = () => {
           </div>
 
           <nav className="nav-menu">
-            <button className="nav-link" onClick={() => scrollToSection('top')}>
+            <button
+              className={`nav-link ${currentView === 'LANDING' ? 'active' : ''}`}
+              onClick={openHome}
+            >
               Home
             </button>
-            <button className="nav-link" onClick={() => scrollToSection('how-it-works')}>
+            <button
+              className={`nav-link ${currentView === 'HOW_IT_WORKS' ? 'active' : ''}`}
+              onClick={() => navigateTo('HOW_IT_WORKS')}
+            >
               How It Works
             </button>
-            <button className="nav-link" onClick={() => scrollToSection('safety')}>
+            <button
+              className={`nav-link ${currentView === 'SAFETY' ? 'active' : ''}`}
+              onClick={() => navigateTo('SAFETY')}
+            >
               Safety
             </button>
-            <button className="nav-link" onClick={() => scrollToSection('providers')}>
+            <button
+              className={`nav-link ${currentView === 'PROVIDERS' ? 'active' : ''}`}
+              onClick={() => navigateTo('PROVIDERS')}
+            >
               For Providers
             </button>
-            <button className="nav-link" onClick={() => scrollToSection('businesses')}>
+            <button
+              className={`nav-link ${currentView === 'BUSINESSES' ? 'active' : ''}`}
+              onClick={() => navigateTo('BUSINESSES')}
+            >
               For Businesses
             </button>
-            <button className="nav-link" onClick={() => scrollToSection('about')}>
+            <button
+              className={`nav-link ${currentView === 'ABOUT' ? 'active' : ''}`}
+              onClick={openAbout}
+            >
               About
+            </button>
+            <button
+              className={`nav-link ${currentView === 'CONTACT' ? 'active' : ''}`}
+              onClick={openContact}
+            >
+              Contact
             </button>
           </nav>
 
           <div className="nav-cta-group">
             {!user ? (
               <>
-                <button className="btn btn-ghost" onClick={openLogin}>
+                <button
+                  className={`btn ${currentView === 'LOGIN' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={openLogin}
+                >
                   Sign In
                 </button>
-                <button className="btn btn-primary" onClick={() => openRegister('PARENT')}>
+                <button
+                  className={`btn ${currentView === 'REGISTER' ? 'btn-navy' : 'btn-primary'}`}
+                  onClick={() => openRegister('PARENT')}
+                >
                   Get Started
                 </button>
               </>
             ) : (
               <button
                 className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  setCurrentView('LANDING');
-                }}
+                onClick={() => navigateTo('LANDING')}
               >
                 Dashboard
               </button>
@@ -121,7 +253,7 @@ const MainContent: FC = () => {
 
       {/* Main View Area */}
       <main style={{ flex: 1 }}>
-        {user ? (
+        {user && currentView === 'LANDING' ? (
           <DashboardView />
         ) : (
           <>
@@ -129,8 +261,8 @@ const MainContent: FC = () => {
               <div className="auth-page">
                 <LoginView
                   onSwitchToRegister={() => openRegister('PARENT')}
-                  onSwitchToForgotPassword={() => setCurrentView('FORGOT_PASSWORD')}
-                  onSuccess={() => setCurrentView('LANDING')}
+                  onSwitchToForgotPassword={() => navigateTo('FORGOT_PASSWORD')}
+                  onSuccess={() => navigateTo('LANDING')}
                 />
               </div>
             )}
@@ -140,7 +272,7 @@ const MainContent: FC = () => {
                 <RegisterView
                   initialRole={selectedInitialRole}
                   onSwitchToLogin={openLogin}
-                  onSuccess={() => setCurrentView('LANDING')}
+                  onSuccess={() => navigateTo('LANDING')}
                 />
               </div>
             )}
@@ -149,6 +281,62 @@ const MainContent: FC = () => {
               <div className="auth-page">
                 <ForgotPasswordView onSwitchToLogin={openLogin} />
               </div>
+            )}
+
+            {currentView === 'ABOUT' && (
+              <AboutView
+                onNavigateHome={openHome}
+                onOpenRegister={(role) => openRegister(role)}
+              />
+            )}
+
+            {currentView === 'CONTACT' && (
+              <ContactView onNavigateHome={openHome} />
+            )}
+
+            {currentView === 'HOW_IT_WORKS' && (
+              <HowItWorksView
+                onNavigateHome={openHome}
+                onOpenRegister={(role) => openRegister(role)}
+                onNavigateContact={openContact}
+              />
+            )}
+
+            {currentView === 'SAFETY' && (
+              <SafetyView
+                onNavigateHome={openHome}
+                onOpenRegister={(role) => openRegister(role)}
+                onNavigatePrivacy={openPrivacy}
+                onNavigateContact={openContact}
+              />
+            )}
+
+            {currentView === 'PROVIDERS' && (
+              <ProvidersView
+                onNavigateHome={openHome}
+                onOpenRegister={(role) => openRegister(role)}
+                onNavigateContact={openContact}
+              />
+            )}
+
+            {currentView === 'BUSINESSES' && (
+              <BusinessesView
+                onNavigateHome={openHome}
+                onOpenRegister={(role) => openRegister(role)}
+                onNavigateContact={openContact}
+              />
+            )}
+
+            {currentView === 'PRIVACY' && (
+              <PrivacyPolicyView onNavigateHome={openHome} />
+            )}
+
+            {currentView === 'TERMS' && (
+              <TermsOfServiceView onNavigateHome={openHome} />
+            )}
+
+            {currentView === 'HELP' && (
+              <HelpCenterView onNavigateHome={openHome} />
             )}
 
             {currentView === 'LANDING' && (
@@ -247,6 +435,15 @@ const MainContent: FC = () => {
                         </p>
                       </div>
                     </div>
+
+                    <div style={{ textAlign: 'center', marginTop: '2.5rem' }}>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => navigateTo('HOW_IT_WORKS')}
+                      >
+                        Explore Full Process & Provider Workflow <ArrowRight size={16} />
+                      </button>
+                    </div>
                   </div>
                 </section>
 
@@ -307,7 +504,7 @@ const MainContent: FC = () => {
                     </div>
 
                     {/* 12. Student Role Information Notice */}
-                    <div className="student-notice-box" id="about">
+                    <div className="student-notice-box">
                       <div style={{ color: 'var(--color-accent)', flexShrink: 0 }}>
                         <Users size={28} />
                       </div>
@@ -321,6 +518,15 @@ const MainContent: FC = () => {
                           through the parent dashboard.
                         </p>
                       </div>
+                    </div>
+
+                    <div style={{ textAlign: 'center', marginTop: '2.5rem' }}>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => navigateTo('SAFETY')}
+                      >
+                        Read Full 4 Safety Pillars & Inspection Standard <ArrowRight size={16} />
+                      </button>
                     </div>
                   </div>
                 </section>
@@ -366,12 +572,20 @@ const MainContent: FC = () => {
                           </div>
                         </div>
 
-                        <button
-                          className="btn btn-primary btn-lg"
-                          onClick={() => openRegister('TRANSPORT_PROVIDER')}
-                        >
-                          Become a Transport Provider <ArrowRight size={18} />
-                        </button>
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <button
+                            className="btn btn-primary btn-lg"
+                            onClick={() => openRegister('TRANSPORT_PROVIDER')}
+                          >
+                            Become a Transport Provider <ArrowRight size={18} />
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-lg"
+                            onClick={() => navigateTo('PROVIDERS')}
+                          >
+                            Learn More About Provider Tools
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -407,7 +621,7 @@ const MainContent: FC = () => {
                             Car dealerships
                           </span>
                           <span className="category-tag">
-                            <Shield size={14} style={{ display: 'inline', marginRight: '6px' }} />
+                            <ShieldCheck size={14} style={{ display: 'inline', marginRight: '6px' }} />
                             Insurance
                           </span>
                           <span className="category-tag">
@@ -424,9 +638,9 @@ const MainContent: FC = () => {
                           <button className="btn btn-navy btn-lg" onClick={() => openRegister('BUSINESS')}>
                             Advertise With SchoolSafe <ArrowRight size={18} />
                           </button>
-                          <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
-                            Target local school routes and verified fleet operators directly.
-                          </span>
+                          <button className="btn btn-secondary btn-lg" onClick={() => navigateTo('BUSINESSES')}>
+                            View Ad Formats & Audiences
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -443,7 +657,7 @@ const MainContent: FC = () => {
         <div className="container">
           <div className="footer-grid">
             <div className="footer-brand">
-              <div className="brand-link" onClick={() => scrollToSection('top')}>
+              <div className="brand-link" onClick={openHome} role="button" tabIndex={0}>
                 <div className="brand-logo-wrap">
                   <img src="/logo-shield.png" alt="SchoolSafe Logo" className="brand-logo-img" />
                 </div>
@@ -462,24 +676,29 @@ const MainContent: FC = () => {
               <h4>Product</h4>
               <ul className="footer-links">
                 <li>
-                  <a href="#how-it-works" onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }}>
+                  <button className="footer-link-btn" onClick={() => openRegister('PARENT')}>
                     Find Transportation
-                  </a>
+                  </button>
                 </li>
                 <li>
-                  <a href="#providers" onClick={(e) => { e.preventDefault(); scrollToSection('providers'); }}>
+                  <button className="footer-link-btn" onClick={() => navigateTo('HOW_IT_WORKS')}>
+                    How It Works
+                  </button>
+                </li>
+                <li>
+                  <button className="footer-link-btn" onClick={() => navigateTo('PROVIDERS')}>
                     For Providers
-                  </a>
+                  </button>
                 </li>
                 <li>
-                  <a href="#safety" onClick={(e) => { e.preventDefault(); scrollToSection('safety'); }}>
-                    Safety
-                  </a>
+                  <button className="footer-link-btn" onClick={() => navigateTo('SAFETY')}>
+                    Safety Standards
+                  </button>
                 </li>
                 <li>
-                  <a href="#businesses" onClick={(e) => { e.preventDefault(); scrollToSection('businesses'); }}>
-                    Advertising
-                  </a>
+                  <button className="footer-link-btn" onClick={() => navigateTo('BUSINESSES')}>
+                    Advertising Platform
+                  </button>
                 </li>
               </ul>
             </div>
@@ -488,24 +707,24 @@ const MainContent: FC = () => {
               <h4>Company</h4>
               <ul className="footer-links">
                 <li>
-                  <a href="#about" onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>
-                    About
-                  </a>
+                  <button className="footer-link-btn" onClick={openAbout}>
+                    About Us
+                  </button>
                 </li>
                 <li>
-                  <a href="#about" onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>
-                    Contact
-                  </a>
+                  <button className="footer-link-btn" onClick={openContact}>
+                    Contact Support
+                  </button>
                 </li>
                 <li>
-                  <a href="#about" onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>
+                  <button className="footer-link-btn" onClick={openPrivacy}>
                     Privacy Policy
-                  </a>
+                  </button>
                 </li>
                 <li>
-                  <a href="#about" onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>
+                  <button className="footer-link-btn" onClick={openTerms}>
                     Terms of Service
-                  </a>
+                  </button>
                 </li>
               </ul>
             </div>
@@ -514,14 +733,19 @@ const MainContent: FC = () => {
               <h4>Support</h4>
               <ul className="footer-links">
                 <li>
-                  <a href="#about" onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>
+                  <button className="footer-link-btn" onClick={openHelp}>
                     Help Center
-                  </a>
+                  </button>
                 </li>
                 <li>
-                  <a href="#about" onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}>
-                    Contact Support
-                  </a>
+                  <button className="footer-link-btn" onClick={openContact}>
+                    Safety Incident Reporting
+                  </button>
+                </li>
+                <li>
+                  <button className="footer-link-btn" onClick={() => navigateTo('PROVIDERS')}>
+                    Operator Onboarding
+                  </button>
                 </li>
               </ul>
             </div>

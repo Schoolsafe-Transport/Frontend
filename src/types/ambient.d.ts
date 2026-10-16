@@ -19,6 +19,7 @@ declare module 'axios' {
     get<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
     post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
     put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
+    patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
     delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
     interceptors: {
       request: { use(onFulfilled?: any, onRejected?: any): number };
@@ -29,6 +30,7 @@ declare module 'axios' {
     create(config?: AxiosRequestConfig): AxiosInstance;
     post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
     get<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
+    patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
   };
   export default axios;
 }
@@ -39,6 +41,7 @@ declare module 'socket.io-client' {
     connected: boolean;
     emit(event: string, ...args: any[]): this;
     on(event: string, fn: (...args: any[]) => void): this;
+    off(event?: string, fn?: (...args: any[]) => void): this;
     disconnect(): this;
     connect(): this;
   }

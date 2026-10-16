@@ -10,6 +10,7 @@ declare module 'react' {
   export function useEffect(effect: () => void | (() => void), deps?: any[]): void;
   export function useContext<T>(context: any): T;
   export function createContext<T>(defaultValue: T): any;
+  export function useRef<T = any>(initialValue?: T | null): { current: T };
   export const StrictMode: any;
   export interface FormEvent<T = any> {
     preventDefault(): void;
@@ -40,6 +41,7 @@ declare module 'react' {
     useEffect: typeof useEffect;
     useContext: typeof useContext;
     createContext: typeof createContext;
+    useRef: typeof useRef;
     StrictMode: typeof StrictMode;
   };
   export default React;
