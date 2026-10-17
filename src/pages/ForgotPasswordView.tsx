@@ -11,6 +11,7 @@ export const ForgotPasswordView: FC<ForgotPasswordViewProps> = ({ onSwitchToLogi
   const [email, setEmail] = useState('');
   const [token, setToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -42,6 +43,11 @@ export const ForgotPasswordView: FC<ForgotPasswordViewProps> = ({ onSwitchToLogi
 
     if (newPassword.length < 8) {
       setErrorMessage('New password must contain at least 8 characters.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMessage('Passwords do not match. Please verify your new password confirmation.');
       return;
     }
 
@@ -150,6 +156,24 @@ export const ForgotPasswordView: FC<ForgotPasswordViewProps> = ({ onSwitchToLogi
             <span className="form-hint">
               Must be at least 8 characters long with letters and numbers.
             </span>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="reset-confirm-password">Confirm New Password</label>
+            <input
+              id="reset-confirm-password"
+              className="form-input"
+              type="password"
+              placeholder="Re-enter your new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+            {confirmPassword && newPassword !== confirmPassword && (
+              <span style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                Passwords do not match
+              </span>
+            )}
           </div>
 
           <button

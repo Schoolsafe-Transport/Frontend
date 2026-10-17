@@ -48,6 +48,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<UserRole>(initialRole);
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -59,6 +60,11 @@ export const RegisterView: FC<RegisterViewProps> = ({
 
     if (password.length < 8) {
       setLocalError('Password must contain at least 8 characters.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setLocalError('Passwords do not match. Please verify your password confirmation.');
       return;
     }
 
@@ -228,6 +234,25 @@ export const RegisterView: FC<RegisterViewProps> = ({
           <span className="form-hint">
             Must contain at least 8 characters with letters and numbers.
           </span>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="reg-confirm-password">Confirm Password</label>
+          <input
+            id="reg-confirm-password"
+            className="form-input"
+            type="password"
+            placeholder="Re-enter your password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
+          {confirmPassword && password !== confirmPassword && (
+            <span style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+              Passwords do not match
+            </span>
+          )}
         </div>
 
         <button type="submit" className="btn btn-primary btn-lg" disabled={submitting} style={{ width: '100%', marginTop: '0.5rem' }}>
