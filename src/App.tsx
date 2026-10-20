@@ -12,12 +12,14 @@ import { ProvidersView } from './pages/ProvidersView';
 import { BusinessesView } from './pages/BusinessesView';
 import { PrivacyPolicyView, TermsOfServiceView, HelpCenterView } from './pages/PolicyViews';
 import { HomeImageSlider } from './components/HomeImageSlider';
+import { FaydaVerificationView } from './pages/FaydaVerificationView';
 import { UserRole } from './types/auth';
 import {
   ShieldCheck,
   MapPin,
   Clock,
   AlertTriangle,
+  AlertCircle,
   Search,
   MessageSquare,
   CheckCircle2,
@@ -43,7 +45,8 @@ export type ViewState =
   | 'HELP'
   | 'LOGIN'
   | 'REGISTER'
-  | 'FORGOT_PASSWORD';
+  | 'FORGOT_PASSWORD'
+  | 'VERIFY_FAYDA';
 
 export const getViewFromPath = (pathname: string): ViewState => {
   const cleanPath = pathname.toLowerCase().replace(/\/$/, '') || '/';
@@ -81,6 +84,10 @@ export const getViewFromPath = (pathname: string): ViewState => {
       return 'REGISTER';
     case '/forgot-password':
       return 'FORGOT_PASSWORD';
+    case '/verify-fayda':
+    case '/fayda-verification':
+    case '/verify':
+      return 'VERIFY_FAYDA';
     default:
       return 'LANDING';
   }
@@ -112,6 +119,8 @@ export const getPathFromView = (view: ViewState): string => {
       return '/register';
     case 'FORGOT_PASSWORD':
       return '/forgot-password';
+    case 'VERIFY_FAYDA':
+      return '/verify-fayda';
     case 'LANDING':
     default:
       return '/';
@@ -119,7 +128,7 @@ export const getPathFromView = (view: ViewState): string => {
 };
 
 const MainContent: FC = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>(() => {
     if (typeof window !== 'undefined') {
       return getViewFromPath(window.location.pathname);
@@ -127,6 +136,10 @@ const MainContent: FC = () => {
     return 'LANDING';
   });
   const [selectedInitialRole, setSelectedInitialRole] = useState<UserRole>('PARENT');
+  const [faydaNotification, setFaydaNotification] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   const navigateTo = (view: ViewState, role?: UserRole) => {
     if (role) {
@@ -150,6 +163,41 @@ const MainContent: FC = () => {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Handle Fayda OAuth/OIDC redirection callback parameters in browser
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const faydaStatus = searchParams.get('fayda');
+      if (faydaStatus === 'success') {
+        refreshUser();
+        setFaydaNotification({
+          type: 'success',
+          message:
+            'Fayda National Digital ID verified successfully! Your account is now officially verified.',
+        });
+        const cleanPath = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanPath);
+      } else if (faydaStatus === 'error') {
+        const msg =
+          searchParams.get('message') ||
+          'Fayda identity verification was not completed. Please retry verification.';
+        setFaydaNotification({
+          type: 'error',
+          message: msg,
+        });
+        const cleanPath = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanPath);
+      }
+    }
+  }, [refreshUser]);
+
+  // Route guard: if an already verified parent accesses verification view, redirect to dashboard
+  useEffect(() => {
+    if (user && user.isVerified && currentView === 'VERIFY_FAYDA') {
+      navigateTo('LANDING');
+    }
+  }, [user, currentView]);
 
   const openRegister = (role: UserRole = 'PARENT') => {
     navigateTo('REGISTER', role);
@@ -253,8 +301,40 @@ const MainContent: FC = () => {
 
       {/* Main View Area */}
       <main style={{ flex: 1 }}>
+        {faydaNotification && (
+          <div className="container" style={{ paddingTop: '1rem', paddingBottom: '0.5rem' }}>
+            <div
+              className={`alert ${
+                faydaNotification.type === 'success' ? 'alert-success' : 'alert-danger'
+              }`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                margin: 0,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {faydaNotification.type === 'success' ? (
+                  <CheckCircle2 size={18} />
+                ) : (
+                  <AlertCircle size={18} />
+                )}
+                <span>{faydaNotification.message}</span>
+              </div>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setFaydaNotification(null)}
+                style={{ padding: '0.2rem 0.5rem' }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {user && currentView === 'LANDING' ? (
-          <DashboardView />
+          <DashboardView onOpenVerifyFayda={() => navigateTo('VERIFY_FAYDA')} />
         ) : (
           <>
             {currentView === 'LOGIN' && (
@@ -262,7 +342,13 @@ const MainContent: FC = () => {
                 <LoginView
                   onSwitchToRegister={() => openRegister('PARENT')}
                   onSwitchToForgotPassword={() => navigateTo('FORGOT_PASSWORD')}
-                  onSuccess={() => navigateTo('LANDING')}
+                  onSuccess={(loggedInUser) => {
+                    if (loggedInUser?.role === 'PARENT' && !loggedInUser?.isVerified) {
+                      navigateTo('VERIFY_FAYDA');
+                    } else {
+                      navigateTo('LANDING');
+                    }
+                  }}
                 />
               </div>
             )}
@@ -272,7 +358,22 @@ const MainContent: FC = () => {
                 <RegisterView
                   initialRole={selectedInitialRole}
                   onSwitchToLogin={openLogin}
+                  onSuccess={(newUser) => {
+                    if (newUser?.role === 'PARENT' && !newUser?.isVerified) {
+                      navigateTo('VERIFY_FAYDA');
+                    } else {
+                      navigateTo('LANDING');
+                    }
+                  }}
+                />
+              </div>
+            )}
+
+            {currentView === 'VERIFY_FAYDA' && (
+              <div className="auth-page">
+                <FaydaVerificationView
                   onSuccess={() => navigateTo('LANDING')}
+                  onSkipToDashboard={() => navigateTo('LANDING')}
                 />
               </div>
             )}

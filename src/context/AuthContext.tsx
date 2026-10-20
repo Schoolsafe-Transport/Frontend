@@ -6,9 +6,10 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (payload: RegisterPayload) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  register: (payload: RegisterPayload) => Promise<User>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<User | null>;
   clearError: () => void;
 }
 
@@ -38,7 +39,29 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     initializeAuth();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const extractErrorMessage = (err: any, fallback: string): string => {
+    const errorData = err.response?.data;
+    if (!errorData) {
+      return err.message || fallback;
+    }
+
+    if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+      const messages = errorData.errors
+        .map((e: any) => e.message || e.msg)
+        .filter(Boolean);
+      if (messages.length > 0) {
+        return messages.join('. ');
+      }
+    }
+
+    if (errorData.message && errorData.message !== 'Validation failed') {
+      return errorData.message;
+    }
+
+    return errorData.message || fallback;
+  };
+
+  const login = async (email: string, password: string): Promise<User> => {
     try {
       setError(null);
       setLoading(true);
@@ -46,8 +69,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       localStorage.setItem('schoolsafe_access_token', res.tokens.accessToken);
       localStorage.setItem('schoolsafe_refresh_token', res.tokens.refreshToken);
       setUser(res.user);
+      return res.user;
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Login failed. Please check your credentials.';
+      const msg = extractErrorMessage(err, 'Login failed. Please check your credentials.');
       setError(msg);
       throw new Error(msg);
     } finally {
@@ -55,7 +79,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     }
   };
 
-  const register = async (payload: RegisterPayload) => {
+  const register = async (payload: RegisterPayload): Promise<User> => {
     try {
       setError(null);
       setLoading(true);
@@ -63,16 +87,28 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       localStorage.setItem('schoolsafe_access_token', res.tokens.accessToken);
       localStorage.setItem('schoolsafe_refresh_token', res.tokens.refreshToken);
       setUser(res.user);
+      return res.user;
     } catch (err: any) {
-      const msg =
-        err.response?.data?.message ||
-        err.response?.data?.errors?.[0]?.message ||
-        'Registration failed. Please check the entered data.';
+      const msg = extractErrorMessage(err, 'Registration failed. Please check the entered data.');
       setError(msg);
       throw new Error(msg);
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshUser = async (): Promise<User | null> => {
+    const storedToken = localStorage.getItem('schoolsafe_access_token');
+    if (storedToken) {
+      try {
+        const profile = await getMeApi();
+        setUser(profile);
+        return profile;
+      } catch (_err) {
+        // Token might be invalid
+      }
+    }
+    return null;
   };
 
   const logout = async () => {
@@ -99,6 +135,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         login,
         register,
         logout,
+        refreshUser,
         clearError,
       }}
     >

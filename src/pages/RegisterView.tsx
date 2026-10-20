@@ -1,12 +1,12 @@
 import { useState, FC, ReactNode, FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { UserRole } from '../types/auth';
-import { Users, Bus, Building2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { UserRole, User } from '../types/auth';
+import { Users, Bus, Building2, AlertCircle, ArrowLeft, Check } from 'lucide-react';
 
 interface RegisterViewProps {
   initialRole?: UserRole;
   onSwitchToLogin: () => void;
-  onSuccess: () => void;
+  onSuccess: (user?: User) => void;
 }
 
 interface RoleChoice {
@@ -58,8 +58,45 @@ export const RegisterView: FC<RegisterViewProps> = ({
     clearError();
     setLocalError(null);
 
+    const trimmedFirst = firstName.trim();
+    const trimmedLast = lastName.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPhone = phone.trim();
+
+    if (trimmedFirst.length < 2) {
+      setLocalError('First name must be at least 2 characters.');
+      return;
+    }
+
+    if (trimmedLast.length < 2) {
+      setLocalError('Last name must be at least 2 characters.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setLocalError('Please enter a valid email address.');
+      return;
+    }
+
     if (password.length < 8) {
       setLocalError('Password must contain at least 8 characters.');
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setLocalError('Password must contain at least 1 uppercase letter.');
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      setLocalError('Password must contain at least 1 lowercase letter.');
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setLocalError('Password must contain at least 1 number.');
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      setLocalError('Password must contain at least 1 special character (e.g. !@#$%^&*).');
       return;
     }
 
@@ -70,15 +107,15 @@ export const RegisterView: FC<RegisterViewProps> = ({
 
     try {
       setSubmitting(true);
-      await register({
-        firstName,
-        lastName,
-        email,
-        phone: phone || undefined,
+      const newUser = await register({
+        firstName: trimmedFirst,
+        lastName: trimmedLast,
+        email: trimmedEmail,
+        phone: trimmedPhone || undefined,
         password,
         role,
       });
-      onSuccess();
+      onSuccess(newUser);
     } catch (err: any) {
       setLocalError(err.message || 'Registration failed. Please check your details.');
     } finally {
@@ -231,9 +268,60 @@ export const RegisterView: FC<RegisterViewProps> = ({
             required
             autoComplete="new-password"
           />
-          <span className="form-hint">
-            Must contain at least 8 characters with letters and numbers.
+          <span className="form-hint" style={{ marginBottom: '0.4rem', display: 'block' }}>
+            Must satisfy all security requirements below:
           </span>
+          {/* Password criteria checklist */}
+          <div
+            style={{
+              padding: '0.65rem 0.85rem',
+              borderRadius: '8px',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              fontSize: '0.78rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.3rem',
+            }}
+          >
+            {[
+              { label: 'At least 8 characters', met: password.length >= 8 },
+              { label: 'At least 1 uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
+              { label: 'At least 1 lowercase letter (a-z)', met: /[a-z]/.test(password) },
+              { label: 'At least 1 number (0-9)', met: /[0-9]/.test(password) },
+              { label: 'At least 1 special character (!@#$%^&*)', met: /[^A-Za-z0-9]/.test(password) },
+            ].map((rule, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  color: rule.met ? '#16A34A' : password.length > 0 ? '#DC2626' : '#64748B',
+                  fontWeight: rule.met ? 600 : 400,
+                  transition: 'color 0.15s ease',
+                }}
+              >
+                {rule.met ? (
+                  <Check size={14} style={{ flexShrink: 0, color: '#16A34A' }} />
+                ) : (
+                  <span
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: password.length > 0 ? '#DC2626' : '#94A3B8',
+                      display: 'inline-block',
+                      marginLeft: '4px',
+                      marginRight: '4px',
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+                <span>{rule.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="form-group">

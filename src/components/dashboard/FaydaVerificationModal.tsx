@@ -1,6 +1,7 @@
 import { useState, FC } from 'react';
 import { ShieldCheck, CheckCircle2, AlertCircle, ExternalLink, X, Loader2 } from 'lucide-react';
 import { verifyFaydaFinApi, getFaydaAuthUrlApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 interface FaydaModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface FaydaModalProps {
 }
 
 export const FaydaVerificationModal: FC<FaydaModalProps> = ({ isOpen, onClose, onVerified }) => {
+  const { refreshUser } = useAuth();
   const [method, setMethod] = useState<'FIN' | 'OIDC'>('FIN');
   const [finNumber, setFinNumber] = useState('');
   const [otp, setOtp] = useState('');
@@ -34,10 +36,11 @@ export const FaydaVerificationModal: FC<FaydaModalProps> = ({ isOpen, onClose, o
       const res = await verifyFaydaFinApi(cleanFin, otp || undefined);
       if (res.success) {
         setSuccess('Fayda National ID verified successfully! Your account is now officially verified.');
+        await refreshUser();
         setTimeout(() => {
           onVerified();
           onClose();
-        }, 1500);
+        }, 1200);
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Verification failed. Please check your Fayda ID number.');

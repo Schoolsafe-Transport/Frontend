@@ -1,11 +1,12 @@
 import { useState, FC, FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { User } from '../types/auth';
 import { AlertCircle, ArrowRight } from 'lucide-react';
 
 interface LoginViewProps {
   onSwitchToRegister: () => void;
   onSwitchToForgotPassword: () => void;
-  onSuccess: () => void;
+  onSuccess: (user?: User) => void;
 }
 
 export const LoginView: FC<LoginViewProps> = ({
@@ -31,8 +32,8 @@ export const LoginView: FC<LoginViewProps> = ({
 
     try {
       setSubmitting(true);
-      await login(email, password);
-      onSuccess();
+      const user = await login(email, password);
+      onSuccess(user);
     } catch (err: any) {
       setLocalError(err.message || 'Unable to sign in. Please verify your credentials.');
     } finally {
