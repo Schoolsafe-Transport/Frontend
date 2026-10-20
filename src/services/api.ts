@@ -119,6 +119,7 @@ export const searchTransportationApi = async (params: {
   schoolBranch?: string;
   pickupArea?: string;
   route?: string;
+  vehicleType?: string;
   minPrice?: number;
   maxPrice?: number;
   minSeats?: number;

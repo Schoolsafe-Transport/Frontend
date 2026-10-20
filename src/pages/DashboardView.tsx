@@ -40,7 +40,11 @@ import { UserProfilePanel } from '../components/dashboard/UserProfilePanel';
 import { ActiveAdBanner } from '../components/dashboard/ActiveAdBanner';
 import { FaydaVerificationModal } from '../components/dashboard/FaydaVerificationModal';
 
-export const DashboardView: FC = () => {
+interface DashboardViewProps {
+  onOpenVerifyFayda?: () => void;
+}
+
+export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => {
   const { user, logout } = useAuth();
   const [showFaydaModal, setShowFaydaModal] = useState(false);
 
@@ -140,7 +144,13 @@ export const DashboardView: FC = () => {
       </div>
 
       {/* Role-Specific Dashboard Renderer */}
-      {actorType === 'PARENT' && <ParentDashboardView user={user} />}
+      {actorType === 'PARENT' && (
+        <ParentDashboardView
+          user={user}
+          onOpenFaydaModal={() => setShowFaydaModal(true)}
+          onOpenVerifyPage={onOpenVerifyFayda}
+        />
+      )}
       {actorType === 'TRANSPORT_PROVIDER_DRIVER' && <ProviderDashboardView user={user} />}
       {actorType === 'BUSINESS' && <BusinessDashboardView user={user} />}
       {actorType === 'ADMIN' && <AdminDashboardView user={user} />}
@@ -149,7 +159,7 @@ export const DashboardView: FC = () => {
       <FaydaVerificationModal
         isOpen={showFaydaModal}
         onClose={() => setShowFaydaModal(false)}
-        onVerified={() => window.location.reload()}
+        onVerified={() => setShowFaydaModal(false)}
       />
     </div>
   );
@@ -159,7 +169,11 @@ export const DashboardView: FC = () => {
    1. PARENT DASHBOARD
    Navigation: Dashboard | My Children | Transportation | Trips | Notifications | Payments | Safety | Profile
    ========================================================================= */
-const ParentDashboardView: FC<{ user: any }> = ({ user }) => {
+const ParentDashboardView: FC<{
+  user: any;
+  onOpenFaydaModal?: () => void;
+  onOpenVerifyPage?: () => void;
+}> = ({ user, onOpenFaydaModal, onOpenVerifyPage }) => {
   const [activeTab, setActiveTab] = useState<
     'Dashboard' | 'My Children' | 'Find Transportation' | 'My Requests' | 'My Transportation' | 'Trips' | 'Notifications' | 'Payments' | 'Safety' | 'Profile'
   >('Dashboard');
@@ -207,6 +221,67 @@ const ParentDashboardView: FC<{ user: any }> = ({ user }) => {
       </div>
 
       <div className="dashboard-main">
+        {!user.isVerified && (
+          <div
+            style={{
+              padding: '1rem 1.25rem',
+              backgroundColor: '#FEF3C7',
+              border: '1px solid #FCD34D',
+              borderRadius: '10px',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  backgroundColor: '#FDE68A',
+                  color: '#B45309',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, color: '#92400E', fontSize: '0.95rem' }}>
+                  Fayda Identity Verification Required for Seat Requests
+                </div>
+                <div style={{ fontSize: '0.825rem', color: '#B45309' }}>
+                  Your parent account is unverified. You can explore available routes, but verified identity is required to request transportation for children.
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {onOpenVerifyPage && (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={onOpenVerifyPage}
+                  style={{ gap: '0.35rem', borderColor: '#B45309', color: '#92400E' }}
+                >
+                  Verification Guide
+                </button>
+              )}
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={onOpenFaydaModal}
+                style={{ gap: '0.35rem', backgroundColor: '#B45309', borderColor: '#B45309', color: '#FFFFFF' }}
+              >
+                <ShieldCheck size={14} /> Verify Fayda ID Now
+              </button>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'Dashboard' && (
           <>
             <ActiveAdBanner />
@@ -443,6 +518,7 @@ const ParentDashboardView: FC<{ user: any }> = ({ user }) => {
             activeTab={activeTab}
             onNavigateTab={(tab) => setActiveTab(tab)}
             user={user}
+            onOpenFaydaModal={onOpenFaydaModal}
           />
         )}
 

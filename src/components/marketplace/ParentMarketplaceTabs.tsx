@@ -11,6 +11,9 @@ import {
   Car,
   ChevronRight,
   Info,
+  AlertTriangle,
+  RotateCcw,
+  Star,
 } from 'lucide-react';
 import {
   searchTransportationApi,
@@ -33,26 +36,36 @@ import {
 interface ParentMarketplaceTabsProps {
   activeTab: 'Find Transportation' | 'My Requests' | 'My Transportation';
   onNavigateTab: (tab: 'Find Transportation' | 'My Requests' | 'My Transportation') => void;
-  user: any;
+  user?: any;
+  onOpenFaydaModal?: () => void;
 }
 
 export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
   activeTab,
   onNavigateTab,
+  user,
+  onOpenFaydaModal,
 }) => {
   // Discovery & Search State
   const [listings, setListings] = useState<TransportationListing[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [filters, setFilters] = useState({
     school: '',
+    schoolBranch: '',
     pickupArea: '',
+    vehicleType: '',
     minPrice: '',
     maxPrice: '',
+    minSeats: '',
+    minRating: '',
     serviceType: '',
+    verifiedOnly: false,
   });
 
-  // Selected Route & Request Modal State
+  // Selected Route & Modals State
   const [selectedRoute, setSelectedRoute] = useState<TransportationListing | null>(null);
+  const [viewingDetailsRoute, setViewingDetailsRoute] = useState<TransportationListing | null>(null);
+  const [showVerificationRequiredModal, setShowVerificationRequiredModal] = useState(false);
   const [students, setStudents] = useState<Student[]>([]);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [submittingRequest, setSubmittingRequest] = useState(false);
@@ -89,12 +102,16 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
     setSearchLoading(true);
     try {
       const params: any = {};
-      if (filters.school) params.school = filters.school;
-      if (filters.pickupArea) params.pickupArea = filters.pickupArea;
+      if (filters.school.trim()) params.school = filters.school.trim();
+      if (filters.schoolBranch.trim()) params.schoolBranch = filters.schoolBranch.trim();
+      if (filters.pickupArea.trim()) params.pickupArea = filters.pickupArea.trim();
+      if (filters.vehicleType) params.vehicleType = filters.vehicleType;
       if (filters.minPrice) params.minPrice = Number(filters.minPrice);
       if (filters.maxPrice) params.maxPrice = Number(filters.maxPrice);
+      if (filters.minSeats) params.minSeats = Number(filters.minSeats);
+      if (filters.minRating) params.minRating = Number(filters.minRating);
       if (filters.serviceType) params.serviceType = filters.serviceType;
-      params.verified = true;
+      if (filters.verifiedOnly) params.verified = true;
 
       const data = await searchTransportationApi(params);
       setListings(data || []);
@@ -103,6 +120,28 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
     } finally {
       setSearchLoading(false);
     }
+  };
+
+  const handleResetFilters = () => {
+    const defaultFilters = {
+      school: '',
+      schoolBranch: '',
+      pickupArea: '',
+      vehicleType: '',
+      minPrice: '',
+      maxPrice: '',
+      minSeats: '',
+      minRating: '',
+      serviceType: '',
+      verifiedOnly: false,
+    };
+    setFilters(defaultFilters);
+    // Fetch immediately with cleared filters
+    setSearchLoading(true);
+    searchTransportationApi({})
+      .then((data) => setListings(data || []))
+      .catch(() => setListings([]))
+      .finally(() => setSearchLoading(false));
   };
 
   const fetchParentRequests = async () => {
@@ -152,6 +191,15 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
     }
   }, [activeTab]);
 
+  const handleRequestSeatClick = (listing: TransportationListing) => {
+    setSelectedRoute(listing);
+    if (!user?.isVerified) {
+      setShowVerificationRequiredModal(true);
+      return;
+    }
+    handleOpenRequestModal(listing);
+  };
+
   const handleOpenRequestModal = async (listing: TransportationListing) => {
     setSelectedRoute(listing);
     setRequestError(null);
@@ -171,6 +219,11 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
 
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.isVerified) {
+      setIsRequestModalOpen(false);
+      setShowVerificationRequiredModal(true);
+      return;
+    }
     if (!selectedStudentId) {
       setRequestError('Please select a student for this transportation request.');
       return;
@@ -196,7 +249,14 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
         onNavigateTab('My Requests');
       }, 1400);
     } catch (err: any) {
-      setRequestError(err.response?.data?.message || 'Failed to submit seat request.');
+      const errMsg = err.response?.data?.message || 'Failed to submit seat request.';
+      setRequestError(errMsg);
+      if (err.response?.status === 403 && errMsg.toLowerCase().includes('verification')) {
+        setTimeout(() => {
+          setIsRequestModalOpen(false);
+          setShowVerificationRequiredModal(true);
+        }, 1500);
+      }
     } finally {
       setSubmittingRequest(false);
     }
@@ -287,13 +347,50 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
             </div>
 
             <div className="filter-group">
-              <label className="filter-label">Pickup Area</label>
+              <label className="filter-label">School Branch</label>
               <input
                 type="text"
                 className="filter-input"
-                placeholder="e.g. Ayder, Bole, Kazanchis"
+                placeholder="e.g. Ayder, Bole, Main"
+                value={filters.schoolBranch}
+                onChange={(e) => setFilters({ ...filters, schoolBranch: e.target.value })}
+              />
+            </div>
+
+            <div className="filter-group">
+              <label className="filter-label">Pickup Neighborhood</label>
+              <input
+                type="text"
+                className="filter-input"
+                placeholder="e.g. Ayder, Kazanchis, CMC"
                 value={filters.pickupArea}
                 onChange={(e) => setFilters({ ...filters, pickupArea: e.target.value })}
+              />
+            </div>
+
+            <div className="filter-group">
+              <label className="filter-label">Vehicle Type</label>
+              <select
+                className="filter-input"
+                value={filters.vehicleType}
+                onChange={(e) => setFilters({ ...filters, vehicleType: e.target.value })}
+              >
+                <option value="">All Vehicles</option>
+                <option value="Minibus">Minibus (HiAce / Minivan)</option>
+                <option value="Van">Van / Coaster</option>
+                <option value="Bus">School Bus</option>
+                <option value="Sedan">Sedan / Compact</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label className="filter-label">Min Price (ETB)</label>
+              <input
+                type="number"
+                className="filter-input"
+                placeholder="Min ETB"
+                value={filters.minPrice}
+                onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
               />
             </div>
 
@@ -302,10 +399,39 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
               <input
                 type="number"
                 className="filter-input"
-                placeholder="e.g. 4000"
+                placeholder="Max ETB"
                 value={filters.maxPrice}
                 onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
               />
+            </div>
+
+            <div className="filter-group">
+              <label className="filter-label">Available Seats</label>
+              <select
+                className="filter-input"
+                value={filters.minSeats}
+                onChange={(e) => setFilters({ ...filters, minSeats: e.target.value })}
+              >
+                <option value="">Any Available</option>
+                <option value="1">1+ Seats</option>
+                <option value="2">2+ Seats</option>
+                <option value="3">3+ Seats</option>
+                <option value="5">5+ Seats</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label className="filter-label">Provider Rating</label>
+              <select
+                className="filter-input"
+                value={filters.minRating}
+                onChange={(e) => setFilters({ ...filters, minRating: e.target.value })}
+              >
+                <option value="">Any Rating</option>
+                <option value="4.0">4.0+ Stars</option>
+                <option value="4.5">4.5+ Stars</option>
+                <option value="4.8">4.8+ Stars</option>
+              </select>
             </div>
 
             <div className="filter-group">
@@ -322,13 +448,33 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
               </select>
             </div>
 
-            <div>
+            <div className="filter-group" style={{ justifyContent: 'center' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer', color: 'var(--color-text-main)' }}>
+                <input
+                  type="checkbox"
+                  checked={filters.verifiedOnly}
+                  onChange={(e) => setFilters({ ...filters, verifiedOnly: e.target.checked })}
+                  style={{ width: '16px', height: '16px', accentColor: 'var(--color-primary)' }}
+                />
+                Verified Providers Only
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', gridColumn: 'span 2' }}>
               <button
                 className="btn btn-primary"
-                style={{ width: '100%', gap: '0.4rem' }}
+                style={{ flex: 1, gap: '0.4rem', justifyContent: 'center' }}
                 onClick={fetchListings}
               >
                 <Search size={16} /> Search Routes
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ gap: '0.4rem', justifyContent: 'center' }}
+                onClick={handleResetFilters}
+                title="Reset all filters"
+              >
+                <RotateCcw size={15} /> Reset
               </button>
             </div>
           </div>
@@ -343,16 +489,13 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
           ) : listings.length === 0 ? (
             <div className="panel-card" style={{ textAlign: 'center', padding: '3rem' }}>
               <Info size={36} style={{ color: 'var(--color-text-secondary)', marginBottom: '0.75rem' }} />
-              <h4 style={{ color: 'var(--color-primary)' }}>No verified transportation options found</h4>
-              <p style={{ maxWidth: '440px', margin: '0.5rem auto 1.5rem' }}>
-                Try adjusting your search criteria or pickup neighborhood to find available verified routes.
+              <h4 style={{ color: 'var(--color-primary)' }}>No transportation options found</h4>
+              <p style={{ maxWidth: '460px', margin: '0.5rem auto 1.5rem', color: 'var(--color-text-secondary)' }}>
+                No active routes match your search filters. Try adjusting your destination school, pickup neighborhood, or clearing the filters.
               </p>
               <button
                 className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  setFilters({ school: '', pickupArea: '', minPrice: '', maxPrice: '', serviceType: '' });
-                  fetchListings();
-                }}
+                onClick={handleResetFilters}
               >
                 Reset Filters
               </button>
@@ -384,7 +527,7 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                         <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-main)' }}>
                           {item.provider.name}
                         </div>
-                        {item.provider.isVerified && (
+                        {item.provider.isVerified ? (
                           <span
                             style={{
                               display: 'inline-flex',
@@ -400,13 +543,24 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                           >
                             <ShieldCheck size={12} /> Verified Provider
                           </span>
+                        ) : (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              fontSize: '0.725rem',
+                              color: 'var(--color-text-secondary)',
+                            }}
+                          >
+                            Transport Provider
+                          </span>
                         )}
                       </div>
                     </div>
 
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', justifyContent: 'flex-end', fontSize: '0.85rem', fontWeight: 700, color: '#D97706' }}>
-                        ★ {item.averageRating.toFixed(1)}
+                        ★ {item.averageRating ? item.averageRating.toFixed(1) : '5.0'}
                       </div>
                       <div style={{ fontSize: '0.725rem', color: 'var(--color-text-secondary)' }}>
                         {item.completedTrips} trips
@@ -421,8 +575,14 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                         {item.routeName}
                       </h4>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.825rem', color: 'var(--color-text-secondary)' }}>
-                        <MapPin size={14} style={{ color: 'var(--color-accent)' }} />
-                        <span>To {item.destinationSchool}</span>
+                        <MapPin size={14} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
+                        <span>
+                          To <strong>{item.destinationSchool}</strong>
+                          {item.schoolBranch ? ` (${item.schoolBranch} Branch)` : ''}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.2rem' }}>
+                        From: {item.origin}
                       </div>
                     </div>
 
@@ -432,13 +592,18 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                         <Car size={16} style={{ color: 'var(--color-primary)' }} />
                         <div>
                           <div style={{ fontWeight: 600 }}>{item.vehicle.model}</div>
-                          <div style={{ fontSize: '0.725rem', color: 'var(--color-text-secondary)' }}>Plate: {item.vehicle.plateNumber}</div>
+                          <div style={{ fontSize: '0.725rem', color: 'var(--color-text-secondary)' }}>
+                            Plate: {item.vehicle.plateNumber}
+                            {item.vehicle.isVerified && (
+                              <span style={{ marginLeft: '0.35rem', color: 'var(--color-success)', fontWeight: 600 }}>✓ Inspected</span>
+                            )}
+                          </div>
                         </div>
                       </div>
 
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: item.availableSeats > 2 ? 'var(--color-success)' : 'var(--color-warning)' }}>
-                          {item.availableSeats} Seats Left
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: item.availableSeats > 2 ? 'var(--color-success)' : item.availableSeats > 0 ? 'var(--color-warning)' : 'var(--color-danger)' }}>
+                          {item.availableSeats > 0 ? `${item.availableSeats} Seats Left` : 'Fully Booked'}
                         </span>
                         <div style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>
                           Cap: {item.capacity}
@@ -458,7 +623,9 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                       {item.stops && item.stops.length > 0 && (
                         <div style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           <span style={{ fontWeight: 600 }}>Stops:</span>
-                          <span>{item.stops.map((s) => s.name).join(' ➔ ')}</span>
+                          <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            {item.stops.map((s) => s.name).join(' ➔ ')}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -474,20 +641,269 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button
                         className="btn btn-secondary btn-sm"
-                        onClick={() => handleOpenRequestModal(item)}
+                        onClick={() => setViewingDetailsRoute(item)}
                       >
                         View Details
                       </button>
                       <button
                         className="btn btn-primary btn-sm"
-                        onClick={() => handleOpenRequestModal(item)}
+                        disabled={item.availableSeats <= 0}
+                        onClick={() => handleRequestSeatClick(item)}
                       >
-                        Request Seat
+                        {item.availableSeats > 0 ? 'Request Seat' : 'Full'}
                       </button>
                     </div>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Dedicated Route & Provider Details Modal */}
+          {viewingDetailsRoute && (
+            <div className="modal-backdrop">
+              <div className="modal-card" style={{ maxWidth: '600px', width: '92%' }}>
+                <div className="modal-header">
+                  <div>
+                    <h3 style={{ fontSize: '1.2rem', color: 'var(--color-primary)', margin: 0 }}>
+                      {viewingDetailsRoute.routeName}
+                    </h3>
+                    <p style={{ fontSize: '0.825rem', color: 'var(--color-text-secondary)', margin: '0.2rem 0 0' }}>
+                      To {viewingDetailsRoute.destinationSchool}
+                      {viewingDetailsRoute.schoolBranch ? ` (${viewingDetailsRoute.schoolBranch} Branch)` : ''}
+                    </p>
+                  </div>
+                  <button onClick={() => setViewingDetailsRoute(null)} style={{ color: 'var(--color-text-muted)' }}>
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {/* Provider & Verification Section */}
+                  <div style={{ padding: '1rem', backgroundColor: '#F8FAFC', borderRadius: '10px', border: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div
+                        style={{
+                          width: '46px',
+                          height: '46px',
+                          borderRadius: '50%',
+                          backgroundColor: 'var(--color-primary)',
+                          color: '#FFFFFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: '1.1rem',
+                        }}
+                      >
+                        {viewingDetailsRoute.provider.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--color-text-main)', fontSize: '0.95rem' }}>
+                          {viewingDetailsRoute.provider.name}
+                        </div>
+                        {viewingDetailsRoute.provider.isVerified ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success)' }}>
+                            <ShieldCheck size={14} /> Fayda & Background Verified Provider
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                            Standard Transport Provider
+                          </div>
+                        )}
+                        {viewingDetailsRoute.provider.phone && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                            Contact: {viewingDetailsRoute.provider.phone}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', justifyContent: 'flex-end', fontWeight: 700, color: '#D97706' }}>
+                        <Star size={15} fill="#D97706" /> {viewingDetailsRoute.averageRating ? viewingDetailsRoute.averageRating.toFixed(1) : '5.0'}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                        {viewingDetailsRoute.completedTrips} school trips completed
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Vehicle Details */}
+                  <div>
+                    <h5 style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', marginBottom: '0.5rem', letterSpacing: '0.03em' }}>
+                      Vehicle & Safety Specifications
+                    </h5>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
+                      <div style={{ padding: '0.75rem', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                        <div style={{ fontSize: '0.725rem', color: 'var(--color-text-secondary)' }}>Model</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{viewingDetailsRoute.vehicle.model}</div>
+                      </div>
+                      <div style={{ padding: '0.75rem', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                        <div style={{ fontSize: '0.725rem', color: 'var(--color-text-secondary)' }}>Plate Number</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{viewingDetailsRoute.vehicle.plateNumber}</div>
+                      </div>
+                      <div style={{ padding: '0.75rem', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                        <div style={{ fontSize: '0.725rem', color: 'var(--color-text-secondary)' }}>Capacity / Seats</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem', color: viewingDetailsRoute.availableSeats > 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                          {viewingDetailsRoute.availableSeats} of {viewingDetailsRoute.capacity} available
+                        </div>
+                      </div>
+                      <div style={{ padding: '0.75rem', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                        <div style={{ fontSize: '0.725rem', color: 'var(--color-text-secondary)' }}>Vehicle Inspection</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem', color: viewingDetailsRoute.vehicle.isVerified ? 'var(--color-success)' : 'var(--color-text-secondary)' }}>
+                          {viewingDetailsRoute.vehicle.isVerified ? '✓ Verified Safe' : 'Pending Inspection'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Route Schedule & Timeline */}
+                  <div>
+                    <h5 style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', marginBottom: '0.5rem', letterSpacing: '0.03em' }}>
+                      Schedule & Stops Timeline
+                    </h5>
+                    <div style={{ padding: '0.75rem', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
+                        <span><strong>Service Type:</strong> {viewingDetailsRoute.serviceType}</span>
+                        <span><strong>Origin:</strong> {viewingDetailsRoute.origin}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.825rem', color: 'var(--color-text-secondary)' }}>
+                        {viewingDetailsRoute.departureTimeMorning && (
+                          <span>Morning Departure: <strong>{viewingDetailsRoute.departureTimeMorning}</strong></span>
+                        )}
+                        {viewingDetailsRoute.departureTimeAfternoon && (
+                          <span>Afternoon Pickup: <strong>{viewingDetailsRoute.departureTimeAfternoon}</strong></span>
+                        )}
+                      </div>
+
+                      {viewingDetailsRoute.stops && viewingDetailsRoute.stops.length > 0 && (
+                        <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '0.5rem' }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '0.4rem' }}>
+                            Designated Stops on Route:
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                            {viewingDetailsRoute.stops.map((stop, sIdx) => (
+                              <div key={stop.id || sIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.825rem' }}>
+                                <span style={{ width: '18px', height: '18px', borderRadius: '50%', backgroundColor: 'var(--color-primary)', color: '#fff', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  {sIdx + 1}
+                                </span>
+                                <span style={{ fontWeight: 600 }}>{stop.name}</span>
+                                {stop.pickupTimeMorning && (
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                                    (AM: {stop.pickupTimeMorning})
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Monthly Pricing Summary */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1rem', backgroundColor: 'var(--color-primary-light, #EFF6FF)', borderRadius: '8px' }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Standard Monthly Fare</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                        ETB {viewingDetailsRoute.monthlyPrice.toLocaleString()} <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>/ month</span>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textAlign: 'right' }}>
+                      Price can be negotiated<br />during request submission
+                    </div>
+                  </div>
+                </div>
+
+                <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setViewingDetailsRoute(null)}
+                  >
+                    Close
+                  </button>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    disabled={viewingDetailsRoute.availableSeats <= 0}
+                    onClick={() => {
+                      const route = viewingDetailsRoute;
+                      setViewingDetailsRoute(null);
+                      handleRequestSeatClick(route);
+                    }}
+                  >
+                    {viewingDetailsRoute.availableSeats > 0 ? 'Request Transportation Seat' : 'Route Full'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Identity Verification Prompt Modal */}
+          {showVerificationRequiredModal && (
+            <div className="modal-backdrop">
+              <div className="modal-card" style={{ maxWidth: '480px', width: '92%' }}>
+                <div className="modal-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <AlertTriangle size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '1.1rem', color: 'var(--color-primary)', margin: 0 }}>
+                        Fayda ID Verification Required
+                      </h3>
+                      <p style={{ fontSize: '0.775rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+                        Ethiopian National Digital ID Safeguard
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowVerificationRequiredModal(false)} style={{ color: 'var(--color-text-muted)' }}>
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.875rem' }}>
+                  <p style={{ color: 'var(--color-text-main)', margin: 0, lineHeight: 1.5 }}>
+                    Under Ethiopian student transportation safety regulations and SchoolSafe security policy, all parents must verify their identity using their <strong>Ethiopian Fayda National Digital ID (FIN or Fayda eSignet)</strong> before submitting seat requests.
+                  </p>
+
+                  {selectedRoute && (
+                    <div style={{ padding: '0.75rem', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '0.825rem' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>Selected Route:</div>
+                      <div>{selectedRoute.routeName} → {selectedRoute.destinationSchool}</div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem', backgroundColor: '#F0FDF4', borderRadius: '8px', border: '1px solid #BBF7D0', color: '#166534', fontSize: '0.8rem' }}>
+                    <ShieldCheck size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <span>
+                      Verification takes less than 60 seconds with your 12-digit Fayda FIN or Fayda eSignet login. Once verified, you can book routes instantly.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setShowVerificationRequiredModal(false)}
+                  >
+                    Browse More First
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => {
+                      setShowVerificationRequiredModal(false);
+                      if (onOpenFaydaModal) {
+                        onOpenFaydaModal();
+                      }
+                    }}
+                  >
+                    Verify Fayda ID Now
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -526,7 +942,10 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                     <div style={{ padding: '1rem', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--color-text-secondary)' }}>Destination School:</span>
-                        <span style={{ fontWeight: 600 }}>{selectedRoute.destinationSchool}</span>
+                        <span style={{ fontWeight: 600 }}>
+                          {selectedRoute.destinationSchool}
+                          {selectedRoute.schoolBranch ? ` (${selectedRoute.schoolBranch} Branch)` : ''}
+                        </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--color-text-secondary)' }}>Vehicle & Driver:</span>
