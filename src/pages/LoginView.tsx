@@ -1,4 +1,4 @@
-import { useState, FC, FormEvent } from 'react';
+import { useState, useEffect, FC, FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User } from '../types/auth';
 import { AlertCircle, ArrowRight } from 'lucide-react';
@@ -19,6 +19,12 @@ export const LoginView: FC<LoginViewProps> = ({
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  // Clear previous auth errors on mount and unmount
+  useEffect(() => {
+    clearError();
+    return () => clearError();
+  }, [clearError]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -78,7 +84,10 @@ export const LoginView: FC<LoginViewProps> = ({
             <label htmlFor="login-password">Password</label>
             <button
               type="button"
-              onClick={onSwitchToForgotPassword}
+              onClick={() => {
+                clearError();
+                onSwitchToForgotPassword();
+              }}
               style={{
                 fontSize: '0.825rem',
                 color: 'var(--color-accent)',
@@ -125,7 +134,10 @@ export const LoginView: FC<LoginViewProps> = ({
           Don't have an account yet?{' '}
           <button
             type="button"
-            onClick={onSwitchToRegister}
+            onClick={() => {
+              clearError();
+              onSwitchToRegister();
+            }}
             style={{
               color: 'var(--color-accent)',
               fontWeight: 600,

@@ -1,4 +1,4 @@
-import { useState, FC, ReactNode, FormEvent } from 'react';
+import { useState, useEffect, FC, ReactNode, FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole, User } from '../types/auth';
 import { Users, Bus, Building2, AlertCircle, ArrowLeft, Check } from 'lucide-react';
@@ -52,6 +52,12 @@ export const RegisterView: FC<RegisterViewProps> = ({
   const [role, setRole] = useState<UserRole>(initialRole);
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  // Clear previous auth errors (e.g. from failed login attempts) on mount and unmount
+  useEffect(() => {
+    clearError();
+    return () => clearError();
+  }, [clearError]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -351,7 +357,10 @@ export const RegisterView: FC<RegisterViewProps> = ({
           Already have an account?{' '}
           <button
             type="button"
-            onClick={onSwitchToLogin}
+            onClick={() => {
+              clearError();
+              onSwitchToLogin();
+            }}
             style={{ color: 'var(--color-accent)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}
           >
             Sign In
@@ -361,7 +370,10 @@ export const RegisterView: FC<RegisterViewProps> = ({
         <div style={{ textAlign: 'center', marginTop: '0.25rem' }}>
           <button
             type="button"
-            onClick={onSwitchToLogin}
+            onClick={() => {
+              clearError();
+              onSwitchToLogin();
+            }}
             className="btn btn-ghost btn-sm"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
           >

@@ -128,7 +128,7 @@ export const getPathFromView = (view: ViewState): string => {
 };
 
 const MainContent: FC = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, clearError } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>(() => {
     if (typeof window !== 'undefined') {
       return getViewFromPath(window.location.pathname);
@@ -142,6 +142,7 @@ const MainContent: FC = () => {
   } | null>(null);
 
   const navigateTo = (view: ViewState, role?: UserRole) => {
+    clearError();
     if (role) {
       setSelectedInitialRole(role);
     }
@@ -155,6 +156,7 @@ const MainContent: FC = () => {
 
   useEffect(() => {
     const handlePopState = () => {
+      clearError();
       const matched = getViewFromPath(window.location.pathname);
       setCurrentView(matched);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -162,7 +164,7 @@ const MainContent: FC = () => {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [clearError]);
 
   // Handle Fayda OAuth/OIDC redirection callback parameters in browser
   useEffect(() => {
