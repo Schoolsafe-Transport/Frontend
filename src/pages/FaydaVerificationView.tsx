@@ -6,10 +6,13 @@ import {
   AlertCircle,
   ExternalLink,
   Loader2,
-  FileText,
   Lock,
+  Eye,
+  EyeOff,
+  Phone,
+  ArrowLeft,
 } from 'lucide-react';
-import { verifyFaydaFinApi, getFaydaAuthUrlApi } from '../services/api';
+import { initiateFaydaFinApi, verifyFaydaFinApi, getFaydaAuthUrlApi } from '../services/api';
 
 interface FaydaVerificationViewProps {
   onSuccess: () => void;
@@ -22,13 +25,31 @@ export const FaydaVerificationView: FC<FaydaVerificationViewProps> = ({
 }) => {
   const { refreshUser } = useAuth();
   const [method, setMethod] = useState<'FIN' | 'OIDC'>('FIN');
+  const [step, setStep] = useState<1 | 2>(1);
   const [finNumber, setFinNumber] = useState('');
+  const [showFin, setShowFin] = useState(false);
   const [otp, setOtp] = useState('');
+  const [transactionId, setTransactionId] = useState<string | null>(null);
+  const [maskedPhone, setMaskedPhone] = useState<string>('');
+  const [simulatedOtp, setSimulatedOtp] = useState<string | null>(null);
+  const [consentAgreed, setConsentAgreed] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [maskedVerifiedId, setMaskedVerifiedId] = useState<string | null>(null);
 
-  const handleVerifyFin = async (e: FormEvent) => {
+  const handleReset = () => {
+    setStep(1);
+    setOtp('');
+    setTransactionId(null);
+    setMaskedPhone('');
+    setSimulatedOtp(null);
+    setError(null);
+    setSuccess(null);
+    setMaskedVerifiedId(null);
+  };
+
+  const handleInitiateFin = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -41,18 +62,60 @@ export const FaydaVerificationView: FC<FaydaVerificationViewProps> = ({
 
     try {
       setLoading(true);
-      const res = await verifyFaydaFinApi(cleanFin, otp || undefined);
+      const res = await initiateFaydaFinApi(cleanFin);
       if (res.success) {
-        setSuccess('Fayda National ID verified successfully! Your guardian account is now verified.');
-        await refreshUser();
-        setTimeout(() => {
-          onSuccess();
-        }, 1200);
+        setTransactionId(res.data.transactionId);
+        setMaskedPhone(res.data.maskedPhone || '+251 9*** ***01');
+        if (res.data.simulatedOtp) {
+          setSimulatedOtp(res.data.simulatedOtp);
+        }
+        setStep(2);
       }
     } catch (err: any) {
       setError(
         err.response?.data?.message ||
-          'Verification failed. Please check your Fayda FIN number and try again.'
+          'Could not initiate Fayda verification. Please check your Fayda FIN number and try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    const cleanFin = finNumber.replace(/[\s-]/g, '');
+    const cleanOtp = otp.trim();
+
+    if (!cleanOtp || cleanOtp.length < 4) {
+      setError('Please enter the 6-digit verification code (OTP) sent to your registered phone.');
+      return;
+    }
+
+    if (!consentAgreed) {
+      setError('You must confirm your consent to establish verified guardian status.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await verifyFaydaFinApi(cleanFin, cleanOtp, transactionId || undefined);
+      if (res.success) {
+        const maskedId = res.data?.faydaIdNumber || `********${cleanFin.slice(-4)}`;
+        setMaskedVerifiedId(maskedId);
+        setSuccess('Fayda National ID verified successfully! Your guardian account is now verified.');
+        await refreshUser();
+        setTimeout(() => {
+          onSuccess();
+          handleReset();
+        }, 1500);
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message ||
+          'Verification failed. Please check your SMS OTP code and try again.'
       );
     } finally {
       setLoading(false);
@@ -120,19 +183,26 @@ export const FaydaVerificationView: FC<FaydaVerificationViewProps> = ({
       )}
 
       {success && (
-        <div className="alert alert-success" style={{ marginBottom: '1.25rem' }}>
-          <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
-          <span>{success}</span>
+        <div className="alert alert-success" style={{ marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+            <span>{success}</span>
+          </div>
+          {maskedVerifiedId && (
+            <div style={{ fontSize: '0.825rem', fontWeight: 600, color: '#166534', marginLeft: '1.6rem' }}>
+              Fayda Identifier: {maskedVerifiedId}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Verification Method Switcher */}
+      {/* Method Switcher */}
       <div
         style={{
           display: 'flex',
           backgroundColor: '#F1F5F9',
           padding: '4px',
-          borderRadius: '10px',
+          borderRadius: '8px',
           marginBottom: '1.5rem',
         }}
       >
@@ -140,159 +210,280 @@ export const FaydaVerificationView: FC<FaydaVerificationViewProps> = ({
           type="button"
           style={{
             flex: 1,
-            padding: '0.75rem',
+            padding: '0.65rem',
             border: 'none',
-            borderRadius: '8px',
+            borderRadius: '6px',
             fontWeight: 600,
-            fontSize: '0.9rem',
+            fontSize: '0.875rem',
             cursor: 'pointer',
             backgroundColor: method === 'FIN' ? '#FFFFFF' : 'transparent',
             color: method === 'FIN' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-            boxShadow: method === 'FIN' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none',
-            transition: 'all 0.15s ease',
+            boxShadow: method === 'FIN' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
           }}
           onClick={() => {
             setMethod('FIN');
-            setError(null);
+            handleReset();
           }}
         >
-          12-Digit FIN Number
+          Fayda FIN Number & SMS OTP
         </button>
         <button
           type="button"
           style={{
             flex: 1,
-            padding: '0.75rem',
+            padding: '0.65rem',
             border: 'none',
-            borderRadius: '8px',
+            borderRadius: '6px',
             fontWeight: 600,
-            fontSize: '0.9rem',
+            fontSize: '0.875rem',
             cursor: 'pointer',
             backgroundColor: method === 'OIDC' ? '#FFFFFF' : 'transparent',
             color: method === 'OIDC' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-            boxShadow: method === 'OIDC' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none',
-            transition: 'all 0.15s ease',
+            boxShadow: method === 'OIDC' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
           }}
           onClick={() => {
             setMethod('OIDC');
-            setError(null);
+            handleReset();
           }}
         >
-          Fayda eSignet (OIDC)
+          Fayda eSignet Portal (OIDC)
         </button>
       </div>
 
       {method === 'FIN' ? (
-        <form onSubmit={handleVerifyFin} className="auth-form">
-          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '1.25rem' }}>
-            Enter your 12-digit Ethiopian Fayda Identification Number (FIN) printed on your National Digital ID card or Fayda app.
-          </p>
+        <div>
+          {step === 1 ? (
+            /* Step 1: Input FIN */
+            <form onSubmit={handleInitiateFin}>
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label htmlFor="verify-fin-number" style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem' }}>
+                  Fayda FIN Number *
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="verify-fin-number"
+                    className="form-input"
+                    type={showFin ? 'text' : 'password'}
+                    placeholder="e.g. 1234 5678 9012"
+                    value={finNumber}
+                    onChange={(e) => setFinNumber(e.target.value)}
+                    style={{
+                      letterSpacing: '2px',
+                      fontSize: '1rem',
+                      fontFamily: showFin ? 'monospace' : 'inherit',
+                      paddingRight: '2.75rem',
+                    }}
+                    required
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowFin(!showFin)}
+                    style={{
+                      position: 'absolute',
+                      right: '0.75rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    title={showFin ? 'Hide Fayda Number' : 'Show Fayda Number'}
+                  >
+                    {showFin ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginTop: '0.35rem' }}>
+                  Your complete Fayda number is masked for privacy and never exposed publicly.
+                </div>
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="fin-input">Fayda FIN Number *</label>
-            <input
-              id="fin-input"
-              type="text"
-              className="form-input"
-              placeholder="e.g. 1234 5678 9012"
-              value={finNumber}
-              onChange={(e) => setFinNumber(e.target.value)}
-              style={{ letterSpacing: '1.5px', fontFamily: 'monospace', fontSize: '1.05rem' }}
-              required
-              autoFocus
-            />
-            <span className="form-hint">
-              12 numeric digits (or 16-digit VID virtual identifier).
-            </span>
-          </div>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={onSkipToDashboard}
+                  style={{ flex: 1 }}
+                >
+                  Skip for Now
+                </button>
+                <button
+                  id="btn-verify-fin-continue"
+                  type="submit"
+                  disabled={loading}
+                  className="btn btn-primary"
+                  style={{
+                    flex: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  {loading ? <Loader2 size={18} className="spin" /> : <ShieldCheck size={18} />}
+                  Continue
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* Step 2: SMS OTP Entry */
+            <form onSubmit={handleVerifyOtp}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                  Step 2: Enter Fayda SMS OTP
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--color-accent)',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                  }}
+                >
+                  <ArrowLeft size={14} /> Change Number
+                </button>
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="otp-input">Fayda SMS OTP (Optional)</label>
-            <input
-              id="otp-input"
-              type="text"
-              className="form-input"
-              placeholder="e.g. 123456"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              maxLength={8}
-            />
-            <span className="form-hint">
-              Leave blank if verifying in standard sandbox mode.
-            </span>
-          </div>
+              <div
+                style={{
+                  padding: '0.75rem 1rem',
+                  backgroundColor: '#EFF6FF',
+                  border: '1px solid #BFDBFE',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  color: '#1E40AF',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <Phone size={16} style={{ flexShrink: 0 }} />
+                <span>
+                  A 6-digit verification code has been dispatched by Fayda to your registered phone <strong>{maskedPhone}</strong>.
+                </span>
+              </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
-            <button
-              type="submit"
-              className="btn btn-primary btn-lg"
-              disabled={loading}
-              style={{ width: '100%', gap: '0.5rem' }}
-            >
-              {loading ? <Loader2 size={18} className="spin" /> : <ShieldCheck size={18} />}
-              {loading ? 'Verifying with National Authority...' : 'Verify Identity with Fayda'}
-            </button>
+              {simulatedOtp && (
+                <div
+                  style={{
+                    padding: '0.5rem 0.75rem',
+                    backgroundColor: '#FEF3C7',
+                    border: '1px solid #FCD34D',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    color: '#92400E',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <strong>Fayda Sandbox:</strong> Use test OTP: <code>{simulatedOtp}</code>
+                </div>
+              )}
 
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onSkipToDashboard}
-              style={{ width: '100%' }}
-            >
-              Browse Routes First (Verify Later)
-            </button>
-          </div>
-        </form>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="verify-otp-input" style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem' }}>
+                  Enter 6-Digit Fayda OTP *
+                </label>
+                <input
+                  id="verify-otp-input"
+                  className="form-input"
+                  type="text"
+                  maxLength={8}
+                  placeholder="e.g. 123456"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  style={{
+                    letterSpacing: '4px',
+                    fontSize: '1.1rem',
+                    textAlign: 'center',
+                    fontWeight: 700,
+                  }}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              {/* Consent Checkbox */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                <input
+                  type="checkbox"
+                  id="fayda-page-consent"
+                  checked={consentAgreed}
+                  onChange={(e) => setConsentAgreed(e.target.checked)}
+                  style={{ marginTop: '3px', accentColor: 'var(--color-accent)' }}
+                />
+                <label htmlFor="fayda-page-consent" style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', lineHeight: 1.4, cursor: 'pointer' }}>
+                  I authorize SchoolSafe to verify my guardianship identity through the authorized Fayda National Digital ID Authority e-KYC integration.
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={onSkipToDashboard}
+                  style={{ flex: 1 }}
+                >
+                  Skip for Now
+                </button>
+                <button
+                  id="btn-confirm-page-verification"
+                  type="submit"
+                  disabled={loading || !consentAgreed}
+                  className="btn btn-primary"
+                  style={{
+                    flex: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  {loading ? <Loader2 size={18} className="spin" /> : <ShieldCheck size={18} />}
+                  Confirm & Complete Verification
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-          <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
-            Authenticate through Ethiopia's official <strong>Fayda eSignet</strong> OpenID Connect portal
-            using your registered biometric or mobile phone credentials.
+        <div>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+            Authenticate directly through Ethiopia's official <strong>Fayda eSignet</strong> OpenID Connect portal.
+            You will be redirected securely to the national authority platform.
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <button
-              type="button"
-              className="btn btn-primary btn-lg"
-              onClick={handleOidcRedirect}
-              disabled={loading}
-              style={{ width: '100%', backgroundColor: '#0F766E', gap: '0.5rem' }}
-            >
-              {loading ? <Loader2 size={18} className="spin" /> : <ExternalLink size={18} />}
-              {loading ? 'Connecting to eSignet Portal...' : 'Continue to Fayda eSignet Portal'}
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onSkipToDashboard}
-              style={{ width: '100%' }}
-            >
-              Browse Routes First (Verify Later)
-            </button>
-          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleOidcRedirect}
+            disabled={loading}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#0F766E',
+            }}
+          >
+            {loading ? <Loader2 size={18} className="spin" /> : <ExternalLink size={18} />}
+            Continue to Fayda eSignet Portal
+          </button>
         </div>
       )}
-
-      {/* Ethiopian Security Footnote */}
-      <div
-        style={{
-          marginTop: '2rem',
-          paddingTop: '1.25rem',
-          borderTop: '1px solid var(--color-border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          fontSize: '0.75rem',
-          color: 'var(--color-text-secondary)',
-        }}
-      >
-        <FileText size={16} style={{ flexShrink: 0, color: 'var(--color-accent)' }} />
-        <span>
-          National ID verification in development/sandbox mode utilizes verified test FIN records.
-          In production environments, authorized eSignet OIDC credentials from the National ID Authority are enforced.
-        </span>
-      </div>
     </div>
   );
 };
