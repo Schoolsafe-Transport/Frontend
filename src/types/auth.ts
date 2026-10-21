@@ -27,6 +27,10 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   isVerified: boolean;
+  faydaId?: string | null;
+  isEmailVerified: boolean;
+  emailVerifiedAt?: string | null;
+  rejectionReason?: string | null;
   profilePhoto?: string | null;
   createdAt: string;
   updatedAt: string;

@@ -94,6 +94,16 @@ export const getMeApi = async (): Promise<User> => {
   return response.data.data;
 };
 
+export const verifyEmailApi = async (token: string): Promise<{ success: boolean; message: string; user?: User }> => {
+  const response = await apiClient.post('/auth/verify-email', { token });
+  return response.data;
+};
+
+export const resendVerificationEmailApi = async (email?: string): Promise<{ success: boolean; message: string }> => {
+  const response = await apiClient.post('/auth/resend-verification', { email });
+  return response.data;
+};
+
 // RBAC Demo Endpoints
 export const testAdminRoute = async () => {
   const response = await apiClient.get('/auth/admin-only');
@@ -425,8 +435,13 @@ export const getFaydaAuthUrlApi = async () => {
   return response.data.data;
 };
 
-export const verifyFaydaFinApi = async (finNumber: string, otp?: string) => {
-  const response = await apiClient.post('/fayda/verify-fin', { finNumber, otp });
+export const initiateFaydaFinApi = async (finNumber: string) => {
+  const response = await apiClient.post('/fayda/initiate-fin', { finNumber });
+  return response.data;
+};
+
+export const verifyFaydaFinApi = async (finNumber: string, otp?: string, transactionId?: string) => {
+  const response = await apiClient.post('/fayda/verify-fin', { finNumber, otp, transactionId });
   return response.data;
 };
 
@@ -542,6 +557,56 @@ export const getAdminSafetyIncidentsApi = async (params?: { status?: string; sev
 
 export const resolveAdminIncidentApi = async (incidentId: string, resolution: string) => {
   const response = await apiClient.patch(`/admin/safety-incidents/${incidentId}/resolve`, { resolution });
+  return response.data.data;
+};
+
+export interface AdminApplication {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone?: string | null;
+  role: string;
+  status: string;
+  isEmailVerified: boolean;
+  emailVerifiedAt?: string | null;
+  isVerified: boolean;
+  rejectionReason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  vehicles?: Array<{
+    id: string;
+    make: string;
+    model: string;
+    year?: number | null;
+    plateNumber: string;
+    capacity: number;
+    isVerified: boolean;
+    status: string;
+    documents?: Array<{
+      id: string;
+      documentType: string;
+      documentUrl: string;
+      isVerified: boolean;
+    }>;
+  }>;
+}
+
+export const getAdminApplicationsApi = async (params?: {
+  role?: string;
+  status?: string;
+  search?: string;
+}): Promise<AdminApplication[]> => {
+  const response = await apiClient.get('/admin/applications', { params });
+  return response.data.data;
+};
+
+export const reviewAdminApplicationApi = async (
+  userId: string,
+  decision: 'APPROVE' | 'REJECT' | 'SUSPEND',
+  reason?: string
+): Promise<User> => {
+  const response = await apiClient.post(`/admin/applications/${userId}/review`, { decision, reason });
   return response.data.data;
 };
 
