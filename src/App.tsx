@@ -13,6 +13,7 @@ import { BusinessesView } from './pages/BusinessesView';
 import { PrivacyPolicyView, TermsOfServiceView, HelpCenterView } from './pages/PolicyViews';
 import { HomeImageSlider } from './components/HomeImageSlider';
 import { FaydaVerificationView } from './pages/FaydaVerificationView';
+import { EmailVerificationView } from './pages/EmailVerificationView';
 import { UserRole } from './types/auth';
 import {
   ShieldCheck,
@@ -46,7 +47,8 @@ export type ViewState =
   | 'LOGIN'
   | 'REGISTER'
   | 'FORGOT_PASSWORD'
-  | 'VERIFY_FAYDA';
+  | 'VERIFY_FAYDA'
+  | 'VERIFY_EMAIL';
 
 export const getViewFromPath = (pathname: string): ViewState => {
   const cleanPath = pathname.toLowerCase().replace(/\/$/, '') || '/';
@@ -84,6 +86,9 @@ export const getViewFromPath = (pathname: string): ViewState => {
       return 'REGISTER';
     case '/forgot-password':
       return 'FORGOT_PASSWORD';
+    case '/verify-email':
+    case '/verify-account':
+      return 'VERIFY_EMAIL';
     case '/verify-fayda':
     case '/fayda-verification':
     case '/verify':
@@ -119,6 +124,8 @@ export const getPathFromView = (view: ViewState): string => {
       return '/register';
     case 'FORGOT_PASSWORD':
       return '/forgot-password';
+    case 'VERIFY_EMAIL':
+      return '/verify-email';
     case 'VERIFY_FAYDA':
       return '/verify-fayda';
     case 'LANDING':
@@ -376,6 +383,16 @@ const MainContent: FC = () => {
                 <FaydaVerificationView
                   onSuccess={() => navigateTo('LANDING')}
                   onSkipToDashboard={() => navigateTo('LANDING')}
+                />
+              </div>
+            )}
+
+            {currentView === 'VERIFY_EMAIL' && (
+              <div className="auth-page">
+                <EmailVerificationView
+                  onSuccess={() => navigateTo('LANDING')}
+                  onNavigateToDashboard={() => navigateTo('LANDING')}
+                  onSwitchToLogin={openLogin}
                 />
               </div>
             )}
