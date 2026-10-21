@@ -7,6 +7,7 @@ import {
   MapPin,
   Clock,
   AlertTriangle,
+  AlertCircle,
   Users,
   Bus,
   Car,
@@ -39,6 +40,8 @@ import { ParentSafetyPanel } from '../components/dashboard/ParentSafetyPanel';
 import { UserProfilePanel } from '../components/dashboard/UserProfilePanel';
 import { ActiveAdBanner } from '../components/dashboard/ActiveAdBanner';
 import { FaydaVerificationModal } from '../components/dashboard/FaydaVerificationModal';
+import { resendVerificationEmailApi } from '../services/api';
+import { AdminApplicationsQueue } from '../components/dashboard/AdminApplicationsQueue';
 
 interface DashboardViewProps {
   onOpenVerifyFayda?: () => void;
@@ -47,8 +50,29 @@ interface DashboardViewProps {
 export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => {
   const { user, logout } = useAuth();
   const [showFaydaModal, setShowFaydaModal] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendNotice, setResendNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   if (!user) return null;
+
+  const handleResendVerification = async () => {
+    try {
+      setResendingEmail(true);
+      setResendNotice(null);
+      const res = await resendVerificationEmailApi(user.email);
+      setResendNotice({
+        type: 'success',
+        text: res.message || 'A fresh email verification link has been dispatched to your inbox.',
+      });
+    } catch (err: any) {
+      setResendNotice({
+        type: 'error',
+        text: err.response?.data?.message || 'Could not send verification email. Please wait a moment and try again.',
+      });
+    } finally {
+      setResendingEmail(false);
+    }
+  };
 
   const actorType: MVPActor = normalizeToMVPActor(user.role);
   const actorDisplayName = getActorDisplayName(user.role);
@@ -87,13 +111,51 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
               {user.lastName[0]}
             </div>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
                 <h3 style={{ fontSize: '1.15rem', color: 'var(--color-primary)' }}>
                   {actorType === 'PARENT' ? `Good morning, ${user.firstName}` : `Welcome back, ${user.firstName}`}
                 </h3>
                 <span className="role-pill">
                   {actorDisplayName}
                 </span>
+
+                {/* Email Verification Status Badge */}
+                {user.isEmailVerified ? (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: 'var(--color-success)',
+                      backgroundColor: 'var(--color-success-light)',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: 'var(--radius-full)',
+                    }}
+                  >
+                    <CheckCircle2 size={12} /> Email Verified
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: '#B45309',
+                      backgroundColor: '#FEF3C7',
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: 'var(--radius-full)',
+                      border: '1px solid #FCD34D',
+                    }}
+                  >
+                    <Clock size={12} /> Email Pending
+                  </span>
+                )}
+
+                {/* Fayda Identity Verification Status Badge */}
                 {user.isVerified ? (
                   <span
                     style={{
@@ -108,7 +170,7 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
                       borderRadius: 'var(--radius-full)',
                     }}
                   >
-                    <CheckCircle2 size={12} /> Verified
+                    <ShieldCheck size={12} /> Fayda Verified{user.faydaId ? ` (${user.faydaId})` : ''}
                   </span>
                 ) : (
                   <button
@@ -142,6 +204,106 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
           </button>
         </div>
       </div>
+
+      {/* Unverified Email Warning Banner */}
+      {!user.isEmailVerified && (
+        <div
+          style={{
+            backgroundColor: '#FEF3C7',
+            borderBottom: '1px solid #FCD34D',
+            padding: '0.75rem 1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <AlertTriangle size={18} style={{ color: '#D97706', shrink: 0 }} />
+            <span style={{ fontSize: '0.875rem', color: '#92400E', fontWeight: 500 }}>
+              <strong>Email Verification Required:</strong> Your email address ({user.email}) has not been confirmed.
+              Certain actions like booking student transportation, publishing routes, or creating campaigns require verified email.
+            </span>
+          </div>
+          <button
+            onClick={handleResendVerification}
+            disabled={resendingEmail}
+            className="btn btn-secondary btn-sm"
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderColor: '#F59E0B',
+              color: '#B45309',
+              fontWeight: 700,
+              fontSize: '0.8rem',
+            }}
+          >
+            {resendingEmail ? 'Sending...' : 'Resend Verification Link'}
+          </button>
+        </div>
+      )}
+
+      {/* Resend Notice Feedback */}
+      {resendNotice && (
+        <div
+          style={{
+            backgroundColor: resendNotice.type === 'success' ? '#ECFDF5' : '#FEF2F2',
+            borderBottom: `1px solid ${resendNotice.type === 'success' ? '#A7F3D0' : '#FECACA'}`,
+            padding: '0.6rem 1.5rem',
+            fontSize: '0.8125rem',
+            color: resendNotice.type === 'success' ? '#065F46' : '#991B1B',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <span>{resendNotice.text}</span>
+          <button
+            onClick={() => setResendNotice(null)}
+            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 700 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Pending Administrator Review Banner */}
+      {user.status === 'PENDING' && (
+        <div
+          style={{
+            backgroundColor: '#EFF6FF',
+            borderBottom: '1px solid #BFDBFE',
+            padding: '0.75rem 1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+          }}
+        >
+          <Clock size={18} style={{ color: '#2563EB', shrink: 0 }} />
+          <span style={{ fontSize: '0.875rem', color: '#1E40AF', fontWeight: 500 }}>
+            <strong>Account Pending Administrator Review:</strong> Your registration application and documents are under review by SchoolSafe administrators. Features requiring approval will be activated once your profile is approved.
+          </span>
+        </div>
+      )}
+
+      {/* Rejected Account Banner */}
+      {user.status === 'REJECTED' && (
+        <div
+          style={{
+            backgroundColor: '#FEF2F2',
+            borderBottom: '1px solid #FECACA',
+            padding: '0.75rem 1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+          }}
+        >
+          <AlertCircle size={18} style={{ color: '#DC2626', shrink: 0 }} />
+          <span style={{ fontSize: '0.875rem', color: '#991B1B', fontWeight: 500 }}>
+            <strong>Application Rejected:</strong> {user.rejectionReason || 'Your application was rejected by administrators. Please review your credentials or contact support.'}
+          </span>
+        </div>
+      )}
 
       {/* Role-Specific Dashboard Renderer */}
       {actorType === 'PARENT' && (
@@ -284,7 +446,7 @@ const ParentDashboardView: FC<{
 
         {activeTab === 'Dashboard' && (
           <>
-            <ActiveAdBanner />
+            <ActiveAdBanner onFindTransportation={() => setActiveTab('Find Transportation')} />
 
             {/* Quick Metrics */}
             <div className="stats-grid">
@@ -1205,58 +1367,8 @@ const AdminDashboardView: FC<{ user: any }> = ({ user }) => {
           </div>
         </div>
 
-        {/* Pending Provider Verifications Queue */}
-        <div className="panel-card">
-          <div className="panel-header">
-            <div>
-              <h3 className="panel-title">Pending Provider Verifications (5)</h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: 0 }}>
-                Review driver licenses, commercial vehicle certificates, and background reports
-              </p>
-            </div>
-          </div>
-
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Applicant Name</th>
-                <th>Role Category</th>
-                <th>Vehicle / Plate</th>
-                <th>Documents Submitted</th>
-                <th>Submission Date</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>Getachew Alemu</strong></td>
-                <td>Transport Provider / Driver</td>
-                <td>Toyota Coaster (3-C4012)</td>
-                <td>License, Inspection, Insurance</td>
-                <td>Today at 09:20 AM</td>
-                <td>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button className="btn btn-primary btn-sm">Approve</button>
-                    <button className="btn btn-secondary btn-sm">Inspect</button>
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td><strong>Tsegaye Haile</strong></td>
-                <td>Transport Provider / Driver</td>
-                <td>Toyota HiAce (3-A9932)</td>
-                <td>License, Vehicle Permit</td>
-                <td>Yesterday</td>
-                <td>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button className="btn btn-primary btn-sm">Approve</button>
-                    <button className="btn btn-secondary btn-sm">Inspect</button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        {/* Real Administrator Review & Approval Queue */}
+        <AdminApplicationsQueue />
 
         {/* Open Safety Incidents */}
         <div className="panel-card">
