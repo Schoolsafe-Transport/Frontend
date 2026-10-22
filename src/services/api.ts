@@ -154,6 +154,8 @@ export const getStudentsApi = async () => {
 export const createStudentApi = async (studentData: {
   firstName: string;
   lastName: string;
+  gender?: string;
+  dateOfBirth?: string;
   grade?: string;
   schoolName: string;
   schoolBranch?: string;
@@ -161,6 +163,34 @@ export const createStudentApi = async (studentData: {
   emergencyPhone?: string;
 }) => {
   const response = await apiClient.post('/transportation/students', studentData);
+  return response.data.data;
+};
+
+export const getStudentByIdApi = async (studentId: string) => {
+  const response = await apiClient.get(`/transportation/students/${studentId}`);
+  return response.data.data;
+};
+
+export const updateStudentApi = async (
+  studentId: string,
+  studentData: Partial<{
+    firstName: string;
+    lastName: string;
+    gender?: string;
+    dateOfBirth?: string;
+    grade?: string;
+    schoolName: string;
+    schoolBranch?: string;
+    homeAddress?: string;
+    emergencyPhone?: string;
+  }>
+) => {
+  const response = await apiClient.patch(`/transportation/students/${studentId}`, studentData);
+  return response.data.data;
+};
+
+export const deleteStudentApi = async (studentId: string) => {
+  const response = await apiClient.delete(`/transportation/students/${studentId}`);
   return response.data.data;
 };
 
@@ -523,6 +553,16 @@ export const getMyAdCampaignsApi = async () => {
 export const recordAdEventApi = async (campaignId: string, eventType: 'IMPRESSION' | 'CLICK') => {
   const response = await apiClient.post(`/advertising/campaigns/${campaignId}/events`, { eventType });
   return response.data;
+};
+
+export const getAllAdCampaignsApi = async () => {
+  const response = await apiClient.get('/advertising/all-campaigns');
+  return response.data.data;
+};
+
+export const updateAdCampaignStatusApi = async (campaignId: string, status: 'ACTIVE' | 'REJECTED' | 'PAUSED') => {
+  const response = await apiClient.patch(`/advertising/campaigns/${campaignId}/status`, { status });
+  return response.data.data;
 };
 
 // ==========================================

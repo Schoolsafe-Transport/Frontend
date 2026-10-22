@@ -10,7 +10,6 @@ import {
   Ban,
   Car,
   ChevronRight,
-  Info,
   AlertTriangle,
   RotateCcw,
   Star,
@@ -96,10 +95,12 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
   const [cancellingAgreement, setCancellingAgreement] = useState<TransportationAgreement | null>(null);
   const [cancellationReason, setCancellationReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   // Load listings on mount or search filter change
   const fetchListings = async () => {
     setSearchLoading(true);
+    setSearchError(null);
     try {
       const params: any = {};
       if (filters.school.trim()) params.school = filters.school.trim();
@@ -115,7 +116,10 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
 
       const data = await searchTransportationApi(params);
       setListings(data || []);
-    } catch (_err) {
+    } catch (err: any) {
+      setSearchError(
+        err?.response?.data?.message || err?.message || 'Unable to connect to SchoolSafe transportation service. Please check your network connection.'
+      );
       setListings([]);
     } finally {
       setSearchLoading(false);
@@ -481,24 +485,70 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
 
           {/* Transportation Listings Grid */}
           {searchLoading ? (
-            <div className="panel-card" style={{ textAlign: 'center', padding: '3rem' }}>
-              <div style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
+            <div className="panel-card" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+              <div style={{ color: 'var(--color-primary)', fontWeight: 600, fontSize: '1rem' }}>
                 Searching verified school transportation options...
               </div>
             </div>
-          ) : listings.length === 0 ? (
-            <div className="panel-card" style={{ textAlign: 'center', padding: '3rem' }}>
-              <Info size={36} style={{ color: 'var(--color-text-secondary)', marginBottom: '0.75rem' }} />
-              <h4 style={{ color: 'var(--color-primary)' }}>No transportation options found</h4>
-              <p style={{ maxWidth: '460px', margin: '0.5rem auto 1.5rem', color: 'var(--color-text-secondary)' }}>
-                No active routes match your search filters. Try adjusting your destination school, pickup neighborhood, or clearing the filters.
+          ) : searchError ? (
+            <div className="panel-card" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+              <AlertTriangle size={42} style={{ color: 'var(--color-danger)', marginBottom: '0.75rem' }} />
+              <h4 style={{ color: 'var(--color-danger)', marginBottom: '0.5rem', fontWeight: 700 }}>
+                Unable to Load Transportation Providers
+              </h4>
+              <p style={{ maxWidth: '480px', margin: '0.5rem auto 1.5rem', color: 'var(--color-text-secondary)', fontSize: '0.95rem' }}>
+                {searchError}
               </p>
               <button
-                className="btn btn-secondary btn-sm"
-                onClick={handleResetFilters}
+                className="btn btn-primary btn-sm"
+                onClick={fetchListings}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: '0 auto' }}
               >
-                Reset Filters
+                <RotateCcw size={15} /> Retry
               </button>
+            </div>
+          ) : listings.length === 0 ? (
+            <div className="panel-card" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+              <div
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '50%',
+                  backgroundColor: '#EFF6FF',
+                  color: 'var(--color-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 1.25rem',
+                }}
+              >
+                <Car size={28} />
+              </div>
+              <h3 style={{ color: 'var(--color-primary)', marginBottom: '0.5rem', fontWeight: 700 }}>
+                No Verified Transport Providers Available Yet
+              </h3>
+              <p style={{ maxWidth: '520px', margin: '0.5rem auto 1.75rem', color: 'var(--color-text-secondary)', fontSize: '0.95rem', lineHeight: 1.5 }}>
+                Please wait until a transport provider registers and is approved on SchoolSafe. Check again later for available school transportation.
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={fetchListings}
+                  id="refresh-availability-btn"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <RotateCcw size={15} /> Refresh Availability
+                </button>
+                {(filters.school || filters.pickupArea || filters.vehicleType || filters.verifiedOnly) && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={handleResetFilters}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                  >
+                    Reset Filters
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <div className="marketplace-grid">
@@ -592,10 +642,16 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                         <Car size={16} style={{ color: 'var(--color-primary)' }} />
                         <div>
                           <div style={{ fontWeight: 600 }}>{item.vehicle.model}</div>
-                          <div style={{ fontSize: '0.725rem', color: 'var(--color-text-secondary)' }}>
-                            Plate: {item.vehicle.plateNumber}
-                            {item.vehicle.isVerified && (
-                              <span style={{ marginLeft: '0.35rem', color: 'var(--color-success)', fontWeight: 600 }}>✓ Inspected</span>
+                          <div style={{ fontSize: '0.725rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <span>Plate: {item.vehicle.plateNumber}</span>
+                            {item.vehicle.isVerified ? (
+                              <span style={{ color: 'var(--color-success)', fontWeight: 700, backgroundColor: 'var(--color-success-light)', padding: '0.05rem 0.35rem', borderRadius: '4px' }}>
+                                ✓ Verified Vehicle
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                                Inspection Pending
+                              </span>
                             )}
                           </div>
                         </div>

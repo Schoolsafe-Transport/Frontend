@@ -1,4 +1,4 @@
-import { useState, FC } from 'react';
+import { useState, useEffect, FC } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { normalizeToMVPActor, getActorDisplayName, MVPActor } from '../types/auth';
 import {
@@ -23,12 +23,13 @@ import {
   CheckCircle2,
   Phone,
   Eye,
-  MousePointer,
   DollarSign,
   UserCheck,
   FileCheck,
   History,
   Search,
+  Loader2,
+  X,
 } from 'lucide-react';
 import { ParentMarketplaceTabs } from '../components/marketplace/ParentMarketplaceTabs';
 import { ProviderMarketplaceTabs } from '../components/marketplace/ProviderMarketplaceTabs';
@@ -40,8 +41,10 @@ import { ParentSafetyPanel } from '../components/dashboard/ParentSafetyPanel';
 import { UserProfilePanel } from '../components/dashboard/UserProfilePanel';
 import { ActiveAdBanner } from '../components/dashboard/ActiveAdBanner';
 import { FaydaVerificationModal } from '../components/dashboard/FaydaVerificationModal';
-import { resendVerificationEmailApi } from '../services/api';
+import { resendVerificationEmailApi, getStudentsApi, createStudentApi } from '../services/api';
 import { AdminApplicationsQueue } from '../components/dashboard/AdminApplicationsQueue';
+import { BusinessCampaignManager } from '../components/dashboard/BusinessCampaignManager';
+import { AdminCampaignManager } from '../components/dashboard/AdminCampaignManager';
 
 interface DashboardViewProps {
   onOpenVerifyFayda?: () => void;
@@ -340,6 +343,91 @@ const ParentDashboardView: FC<{
     'Dashboard' | 'My Children' | 'Find Transportation' | 'My Requests' | 'My Transportation' | 'Trips' | 'Notifications' | 'Payments' | 'Safety' | 'Profile'
   >('Dashboard');
 
+  const [students, setStudents] = useState<any[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+  const [showRegisterChildModal, setShowRegisterChildModal] = useState(false);
+  const [registeringChild, setRegisteringChild] = useState(false);
+  const [registerError, setRegisterError] = useState<string | null>(null);
+  const [registerSuccess, setRegisterSuccess] = useState<string | null>(null);
+
+  // Form fields for child registration
+  const [childForm, setChildForm] = useState({
+    firstName: '',
+    lastName: '',
+    grade: '',
+    schoolName: '',
+    schoolBranch: '',
+    homeAddress: '',
+    emergencyPhone: '',
+    gender: 'Male',
+    dateOfBirth: '',
+  });
+
+  const fetchStudents = async () => {
+    setStudentsLoading(true);
+    try {
+      const data = await getStudentsApi();
+      setStudents(data || []);
+    } catch (_err) {
+      setStudents([]);
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  const handleRegisterChild = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!childForm.firstName.trim() || !childForm.lastName.trim() || !childForm.schoolName.trim()) {
+      setRegisterError('First name, last name, and school name are required.');
+      return;
+    }
+
+    setRegisteringChild(true);
+    setRegisterError(null);
+    try {
+      const payload: any = {
+        firstName: childForm.firstName.trim(),
+        lastName: childForm.lastName.trim(),
+        schoolName: childForm.schoolName.trim(),
+      };
+      if (childForm.grade.trim()) payload.grade = childForm.grade.trim();
+      if (childForm.schoolBranch.trim()) payload.schoolBranch = childForm.schoolBranch.trim();
+      if (childForm.homeAddress.trim()) payload.homeAddress = childForm.homeAddress.trim();
+      if (childForm.emergencyPhone.trim()) payload.emergencyPhone = childForm.emergencyPhone.trim();
+      if (childForm.gender) payload.gender = childForm.gender;
+      if (childForm.dateOfBirth) payload.dateOfBirth = childForm.dateOfBirth;
+
+      await createStudentApi(payload);
+      setRegisterSuccess(`${childForm.firstName} registered successfully!`);
+      await fetchStudents();
+      setChildForm({
+        firstName: '',
+        lastName: '',
+        grade: '',
+        schoolName: '',
+        schoolBranch: '',
+        homeAddress: '',
+        emergencyPhone: '',
+        gender: 'Male',
+        dateOfBirth: '',
+      });
+      setTimeout(() => {
+        setShowRegisterChildModal(false);
+        setRegisterSuccess(null);
+      }, 1000);
+    } catch (err: any) {
+      setRegisterError(
+        err?.response?.data?.message || err?.message || 'Failed to register child. Please try again.'
+      );
+    } finally {
+      setRegisteringChild(false);
+    }
+  };
+
   const tabs: Array<'Dashboard' | 'My Children' | 'Find Transportation' | 'My Requests' | 'My Transportation' | 'Trips' | 'Notifications' | 'Payments' | 'Safety' | 'Profile'> = [
     'Dashboard',
     'My Children',
@@ -455,8 +543,12 @@ const ParentDashboardView: FC<{
                   <span>Registered Children</span>
                   <Users size={18} style={{ color: 'var(--color-accent)' }} />
                 </div>
-                <div className="stat-value">2</div>
-                <div className="stat-subtext">Both safely assigned to morning routes</div>
+                <div className="stat-value">{students.length}</div>
+                <div className="stat-subtext">
+                  {students.length === 0
+                    ? 'No children registered yet'
+                    : `${students.length} child${students.length > 1 ? 'ren' : ''} under guardianship`}
+                </div>
               </div>
 
               <div className="stat-card">
@@ -464,8 +556,10 @@ const ParentDashboardView: FC<{
                   <span>Active Transit</span>
                   <Bus size={18} style={{ color: 'var(--color-success)' }} />
                 </div>
-                <div className="stat-value">In Transit</div>
-                <div className="stat-subtext">Route #04 • Cambridge Academy</div>
+                <div className="stat-value">{students.length > 0 ? 'Active' : 'No Commute'}</div>
+                <div className="stat-subtext">
+                  {students.length > 0 ? 'Verified school transit service' : 'Explore routes to request transit'}
+                </div>
               </div>
 
               <div className="stat-card">
@@ -483,7 +577,7 @@ const ParentDashboardView: FC<{
                   <CreditCard size={18} style={{ color: 'var(--color-primary)' }} />
                 </div>
                 <div className="stat-value" style={{ color: 'var(--color-success)' }}>
-                  Paid
+                  Current
                 </div>
                 <div className="stat-subtext">Next billing cycle: Nov 1, 2026</div>
               </div>
@@ -499,69 +593,89 @@ const ParentDashboardView: FC<{
                   </p>
                 </div>
                 <span className="badge-status active" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--color-success)' }}></span>
-                  Live Transit Active
+                  <span
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: students.length > 0 ? 'var(--color-success)' : 'var(--color-text-secondary)',
+                    }}
+                  ></span>
+                  {students.length > 0 ? 'Live Monitoring Ready' : 'No Active Commute'}
                 </span>
               </div>
 
-              <div className="grid-2" style={{ alignItems: 'center' }}>
-                <div style={{ padding: '1.25rem', backgroundColor: '#F8FAFC', borderRadius: '10px', border: '1px solid var(--color-border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--color-primary)' }}>
-                      Route #04: Bole Medhanealem ➔ Cambridge Academy
+              {students.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2.5rem 1rem' }}>
+                  <p style={{ color: 'var(--color-text-secondary)', margin: '0 auto 1.25rem', fontSize: '0.95rem' }}>
+                    No active school transit today. Register your child and request transportation to monitor live school commutes.
+                  </p>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setRegisterError(null);
+                      setRegisterSuccess(null);
+                      setShowRegisterChildModal(true);
+                    }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', margin: '0 auto' }}
+                  >
+                    <Plus size={15} /> Register Your Child
+                  </button>
+                </div>
+              ) : (
+                <div className="grid-2" style={{ alignItems: 'center' }}>
+                  <div style={{ padding: '1.25rem', backgroundColor: '#F8FAFC', borderRadius: '10px', border: '1px solid var(--color-border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--color-primary)' }}>
+                        Registered School Commute Status
+                      </div>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-accent)' }}>Active Guardianship</span>
                     </div>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-accent)' }}>Morning Run</span>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.875rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--color-text-secondary)' }}>Primary Child:</span>
+                        <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
+                          {students[0].firstName} {students[0].lastName} {students[0].grade ? `(${students[0].grade})` : ''}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--color-text-secondary)' }}>Designated School:</span>
+                        <span style={{ fontWeight: 600 }}>{students[0].schoolName}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--color-text-secondary)' }}>Total Registered:</span>
+                        <span style={{ fontWeight: 600 }}>{students.length} Student{students.length > 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.875rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--color-text-secondary)' }}>Verified Driver:</span>
-                      <span style={{ fontWeight: 600 }}>Dawit Abebe (ID: #DRV-849)</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--color-text-secondary)' }}>Vehicle Plate:</span>
-                      <span style={{ fontWeight: 600 }}>Toyota HiAce • 3-A2849</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--color-text-secondary)' }}>Student Passenger:</span>
-                      <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>Maya Bekele (Grade 5)</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--color-text-secondary)' }}>Boarding Status:</span>
-                      <span style={{ color: 'var(--color-success)', fontWeight: 700 }}>Boarded at 07:18 AM</span>
+                  <div style={{ padding: '1.25rem', backgroundColor: '#FFFFFF', borderRadius: '10px', border: '1px solid var(--color-border)' }}>
+                    <h4 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', color: 'var(--color-primary)' }}>
+                      Journey Quick Actions
+                    </h4>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
+                      Manage assigned routes or discover new verified routes for your children.
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => setActiveTab('Find Transportation')}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <Search size={14} /> Find Transportation
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setActiveTab('Safety')}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <Shield size={14} /> Manage Pickups
+                      </button>
                     </div>
                   </div>
                 </div>
-
-                <div style={{ padding: '1.25rem', backgroundColor: '#FFFFFF', borderRadius: '10px', border: '1px solid var(--color-border)' }}>
-                  <h4 style={{ fontSize: '0.95rem', marginBottom: '0.75rem', color: 'var(--color-primary)' }}>
-                    Journey Progress Timeline
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative' }}>
-                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-                      <CheckCircle2 size={18} style={{ color: 'var(--color-success)', marginTop: '2px' }} />
-                      <div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>Trip Started by Driver</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>07:05 AM • Bole Terminal Hub</div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-                      <CheckCircle2 size={18} style={{ color: 'var(--color-success)', marginTop: '2px' }} />
-                      <div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>Student Boarded Successfully</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>07:18 AM • Bole Medhanealem Stop</div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-                      <Clock size={18} style={{ color: 'var(--color-accent)', marginTop: '2px' }} />
-                      <div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-accent)' }}>In Transit to School</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>ETA: 07:45 AM • Cambridge Academy Gate</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Notifications & Safety Alerts */}
@@ -625,51 +739,137 @@ const ParentDashboardView: FC<{
 
         {activeTab === 'My Children' && (
           <div className="panel-card">
-            <div className="panel-header">
+            <div className="panel-header" style={{ alignItems: 'center' }}>
               <div>
                 <h3 className="panel-title">My Registered Children</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: 0 }}>
-                  Students managed under your parent guardian account
+                  Students managed under your parent guardian account ({students.length})
                 </p>
               </div>
-              <button className="btn btn-primary btn-sm" style={{ display: 'inline-flex', gap: '0.35rem' }}>
-                <Plus size={16} /> Add Child
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  setRegisterError(null);
+                  setRegisterSuccess(null);
+                  setShowRegisterChildModal(true);
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                id="register-child-top-btn"
+              >
+                <Plus size={16} /> Register Child
               </button>
             </div>
 
-            <div className="grid-2">
-              <div style={{ padding: '1.25rem', border: '1px solid var(--color-border)', borderRadius: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                  <div>
-                    <h4 style={{ color: 'var(--color-primary)', fontSize: '1.1rem' }}>Maya Bekele</h4>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Grade 5 • Age 10 • ID: #STD-1092</span>
-                  </div>
-                  <span className="badge-status active">Active Route</span>
-                </div>
-                <div style={{ fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', color: 'var(--color-text-main)' }}>
-                  <div><strong>School:</strong> Cambridge Academy (Bole Campus)</div>
-                  <div><strong>Assigned Route:</strong> Route #04 (Morning & Afternoon)</div>
-                  <div><strong>Provider:</strong> Dawit Abebe (Verified Provider)</div>
-                  <div><strong>Pickup Location:</strong> Bole Medhanealem (07:15 AM)</div>
-                </div>
+            {studentsLoading ? (
+              <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', color: 'var(--color-primary)' }}>
+                <Loader2 size={32} className="spin-animation" style={{ margin: '0 auto 0.75rem' }} />
+                <div style={{ fontWeight: 600 }}>Loading your registered children...</div>
               </div>
+            ) : students.length === 0 ? (
+              <div className="empty-state-card" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+                <div
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '50%',
+                    backgroundColor: '#EFF6FF',
+                    color: 'var(--color-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 1.25rem',
+                  }}
+                >
+                  <Users size={28} />
+                </div>
+                <h3 style={{ color: 'var(--color-primary)', marginBottom: '0.5rem', fontWeight: 700 }}>
+                  No Children Registered Yet
+                </h3>
+                <p style={{ maxWidth: '480px', margin: '0 auto 1.75rem', color: 'var(--color-text-secondary)', fontSize: '0.95rem' }}>
+                  Register your child to find suitable school transportation.
+                </p>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setRegisterError(null);
+                    setRegisterSuccess(null);
+                    setShowRegisterChildModal(true);
+                  }}
+                  id="register-child-empty-state-btn"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', margin: '0 auto' }}
+                >
+                  <Plus size={16} /> Register Your Child
+                </button>
+              </div>
+            ) : (
+              <div className="grid-2">
+                {students.map((child) => (
+                  <div
+                    key={child.id}
+                    style={{
+                      padding: '1.25rem',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '10px',
+                      backgroundColor: '#FFFFFF',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: '1rem',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                        <div>
+                          <h4 style={{ color: 'var(--color-primary)', fontSize: '1.1rem', margin: 0 }}>
+                            {child.firstName} {child.lastName}
+                          </h4>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                            {child.grade ? `${child.grade} • ` : ''}ID: #{child.id.substring(0, 8).toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="badge-status active">Registered</span>
+                      </div>
 
-              <div style={{ padding: '1.25rem', border: '1px solid var(--color-border)', borderRadius: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                  <div>
-                    <h4 style={{ color: 'var(--color-primary)', fontSize: '1.1rem' }}>Noah Bekele</h4>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Grade 2 • Age 7 • ID: #STD-1093</span>
+                      <div style={{ fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.45rem', color: 'var(--color-text-main)' }}>
+                        <div>
+                          <strong style={{ color: 'var(--color-text-secondary)' }}>School: </strong>
+                          {child.schoolName} {child.schoolBranch ? `(${child.schoolBranch})` : ''}
+                        </div>
+                        {child.homeAddress && (
+                          <div>
+                            <strong style={{ color: 'var(--color-text-secondary)' }}>Pickup Address: </strong>
+                            {child.homeAddress}
+                          </div>
+                        )}
+                        {child.emergencyPhone && (
+                          <div>
+                            <strong style={{ color: 'var(--color-text-secondary)' }}>Emergency Contact: </strong>
+                            {child.emergencyPhone}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid #F1F5F9' }}>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => setActiveTab('Find Transportation')}
+                        style={{ flex: 1, justifyContent: 'center', gap: '0.35rem' }}
+                      >
+                        <Search size={14} /> Find Transportation
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setActiveTab('Safety')}
+                        style={{ justifyContent: 'center', gap: '0.35rem' }}
+                      >
+                        <Shield size={14} /> Safety & Pickups
+                      </button>
+                    </div>
                   </div>
-                  <span className="badge-status active">Active Route</span>
-                </div>
-                <div style={{ fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', color: 'var(--color-text-main)' }}>
-                  <div><strong>School:</strong> Cambridge Academy (Bole Campus)</div>
-                  <div><strong>Assigned Route:</strong> Route #04 (Morning & Afternoon)</div>
-                  <div><strong>Provider:</strong> Dawit Abebe (Verified Provider)</div>
-                  <div><strong>Pickup Location:</strong> Bole Medhanealem (07:15 AM)</div>
-                </div>
+                ))}
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -701,7 +901,11 @@ const ParentDashboardView: FC<{
             <div style={{ marginBottom: '1.5rem', padding: '1.25rem', backgroundColor: '#F8FAFC', borderRadius: '8px' }}>
               <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Current Billing Cycle:</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-primary)', margin: '0.25rem 0' }}>$150.00 / Month</div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--color-success)', fontWeight: 600 }}>Paid for October 2026 • 2 Children (Maya & Noah)</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--color-success)', fontWeight: 600 }}>
+                {students.length > 0
+                  ? `Active Account • ${students.length} Child${students.length > 1 ? 'ren' : ''} (${students.map((s) => s.firstName).join(' & ')})`
+                  : 'No registered children'}
+              </div>
             </div>
             <table className="data-table">
               <thead>
@@ -741,6 +945,255 @@ const ParentDashboardView: FC<{
           <UserProfilePanel user={user} />
         )}
       </div>
+
+      {/* Register Child Modal */}
+      {showRegisterChildModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+            backdropFilter: 'blur(4px)',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !registeringChild) {
+              setShowRegisterChildModal(false);
+            }
+          }}
+        >
+          <div
+            className="panel-card"
+            style={{
+              maxWidth: '560px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '2rem',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '8px',
+                    backgroundColor: '#EFF6FF',
+                    color: 'var(--color-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Users size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-primary)', fontWeight: 700 }}>
+                    Register Your Child
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                    Add student to your verified parent account
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => !registeringChild && setShowRegisterChildModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--color-text-secondary)',
+                  padding: '0.25rem',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {registerError && (
+              <div
+                style={{
+                  padding: '0.75rem 1rem',
+                  backgroundColor: '#FEE2E2',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: '8px',
+                  color: '#991B1B',
+                  fontSize: '0.875rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <AlertCircle size={16} /> {registerError}
+              </div>
+            )}
+
+            {registerSuccess && (
+              <div
+                style={{
+                  padding: '0.75rem 1rem',
+                  backgroundColor: '#DCFCE7',
+                  border: '1px solid #86EFAC',
+                  borderRadius: '8px',
+                  color: '#166534',
+                  fontSize: '0.875rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <CheckCircle2 size={16} /> {registerSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleRegisterChild} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label className="filter-label" style={{ fontWeight: 600 }}>First Name *</label>
+                  <input
+                    type="text"
+                    required
+                    className="filter-input"
+                    placeholder="e.g. Maya"
+                    value={childForm.firstName}
+                    onChange={(e) => setChildForm({ ...childForm, firstName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="filter-label" style={{ fontWeight: 600 }}>Last Name *</label>
+                  <input
+                    type="text"
+                    required
+                    className="filter-input"
+                    placeholder="e.g. Bekele"
+                    value={childForm.lastName}
+                    onChange={(e) => setChildForm({ ...childForm, lastName: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="filter-label" style={{ fontWeight: 600 }}>School Name *</label>
+                <input
+                  type="text"
+                  required
+                  className="filter-input"
+                  placeholder="e.g. Cambridge Academy"
+                  value={childForm.schoolName}
+                  onChange={(e) => setChildForm({ ...childForm, schoolName: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label className="filter-label">School Branch / Campus</label>
+                  <input
+                    type="text"
+                    className="filter-input"
+                    placeholder="e.g. Bole Campus"
+                    value={childForm.schoolBranch}
+                    onChange={(e) => setChildForm({ ...childForm, schoolBranch: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="filter-label">Grade / Year</label>
+                  <input
+                    type="text"
+                    className="filter-input"
+                    placeholder="e.g. Grade 5"
+                    value={childForm.grade}
+                    onChange={(e) => setChildForm({ ...childForm, grade: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="filter-label">Home Pickup Address</label>
+                <input
+                  type="text"
+                  className="filter-input"
+                  placeholder="e.g. Bole Medhanealem, Addis Ababa"
+                  value={childForm.homeAddress}
+                  onChange={(e) => setChildForm({ ...childForm, homeAddress: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="filter-label">Emergency Contact Phone</label>
+                <input
+                  type="tel"
+                  className="filter-input"
+                  placeholder="e.g. +251 911 234 567"
+                  value={childForm.emergencyPhone}
+                  onChange={(e) => setChildForm({ ...childForm, emergencyPhone: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label className="filter-label">Gender</label>
+                  <select
+                    className="filter-input"
+                    value={childForm.gender}
+                    onChange={(e) => setChildForm({ ...childForm, gender: e.target.value })}
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="filter-label">Date of Birth</label>
+                  <input
+                    type="date"
+                    className="filter-input"
+                    value={childForm.dateOfBirth}
+                    onChange={(e) => setChildForm({ ...childForm, dateOfBirth: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={registeringChild}
+                  onClick={() => setShowRegisterChildModal(false)}
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={registeringChild}
+                  style={{ flex: 2, justifyContent: 'center', gap: '0.4rem' }}
+                >
+                  {registeringChild ? (
+                    <>
+                      <Loader2 size={16} className="spin-animation" /> Registering...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} /> Register Child
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1066,111 +1519,8 @@ const BusinessDashboardView: FC<{ user: any }> = ({ user }) => {
       </div>
 
       <div className="dashboard-main">
-        {/* Overview Stats (Requirements: Active Ads, Pending Ads, Views, Clicks, Spend, Campaign Status) */}
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-header">
-              <span>Active Ads</span>
-              <FileText size={18} style={{ color: 'var(--color-accent)' }} />
-            </div>
-            <div className="stat-value">3 Active</div>
-            <div className="stat-subtext">1 Ad Pending Review</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-header">
-              <span>Advertisement Views</span>
-              <Eye size={18} style={{ color: 'var(--color-primary)' }} />
-            </div>
-            <div className="stat-value">14,250</div>
-            <div className="stat-subtext">Across Parent & Provider Portals</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-header">
-              <span>Clicks (Engagement)</span>
-              <MousePointer size={18} style={{ color: 'var(--color-success)' }} />
-            </div>
-            <div className="stat-value">842</div>
-            <div className="stat-subtext">5.91% Click-Through Rate</div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-header">
-              <span>Advertising Spend</span>
-              <DollarSign size={18} style={{ color: 'var(--color-warning)' }} />
-            </div>
-            <div className="stat-value">$420.00</div>
-            <div className="stat-subtext">Campaign Status: Running</div>
-          </div>
-        </div>
-
-        {activeTab === 'Dashboard' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <div>
-                <h3 className="panel-title">Active Advertising Campaigns</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: 0 }}>
-                  Targeted advertising to families, transport providers, and school communities
-                </p>
-              </div>
-              <button className="btn btn-primary btn-sm" style={{ display: 'inline-flex', gap: '0.35rem' }}>
-                <Plus size={16} /> Create Campaign
-              </button>
-            </div>
-
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Campaign Title</th>
-                  <th>Category</th>
-                  <th>Audience Target</th>
-                  <th>Impressions</th>
-                  <th>Clicks</th>
-                  <th>Budget</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>SafeTire Fleet Discount (15% Off)</strong></td>
-                  <td>Tire shops & Fleet Service</td>
-                  <td>Transport Providers / Drivers</td>
-                  <td>6,840</td>
-                  <td>412</td>
-                  <td>$180 / mo</td>
-                  <td><span className="badge-status active">Active</span></td>
-                </tr>
-                <tr>
-                  <td><strong>Family Van Safety Tune-up Special</strong></td>
-                  <td>Automotive Services</td>
-                  <td>Parents & Guardians</td>
-                  <td>5,410</td>
-                  <td>320</td>
-                  <td>$150 / mo</td>
-                  <td><span className="badge-status active">Active</span></td>
-                </tr>
-                <tr>
-                  <td><strong>Commercial Bus Insurance Package</strong></td>
-                  <td>Insurance</td>
-                  <td>Fleet Owners & Providers</td>
-                  <td>2,000</td>
-                  <td>110</td>
-                  <td>$90 / mo</td>
-                  <td><span className="badge-status active">Active</span></td>
-                </tr>
-                <tr>
-                  <td><strong>Genuine Spare Parts - School Buses</strong></td>
-                  <td>Spare Parts</td>
-                  <td>Transport Providers</td>
-                  <td>—</td>
-                  <td>—</td>
-                  <td>$100 / mo</td>
-                  <td><span className="badge-status pending">Pending Review</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        {(activeTab === 'Dashboard' || activeTab === 'Advertisements' || activeTab === 'Campaigns' || activeTab === 'Analytics') && (
+          <BusinessCampaignManager />
         )}
 
         {activeTab === 'My Business' && (
@@ -1179,27 +1529,17 @@ const BusinessDashboardView: FC<{ user: any }> = ({ user }) => {
               <h3 className="panel-title">Business Profile & Verification</h3>
             </div>
             <div style={{ maxWidth: '600px', display: 'grid', gridTemplateColumns: '160px 1fr', gap: '1rem', fontSize: '0.925rem' }}>
-              <span style={{ color: 'var(--color-text-secondary)' }}>Company Name:</span>
-              <span style={{ fontWeight: 600 }}>SafeTire Automotive Hub</span>
+              <span style={{ color: 'var(--color-text-secondary)' }}>Account Name:</span>
+              <span style={{ fontWeight: 600 }}>{user.firstName} {user.lastName}</span>
 
-              <span style={{ color: 'var(--color-text-secondary)' }}>Industry:</span>
-              <span>Automotive Services & Tire Distribution</span>
+              <span style={{ color: 'var(--color-text-secondary)' }}>Email:</span>
+              <span>{user.email}</span>
 
-              <span style={{ color: 'var(--color-text-secondary)' }}>Business License:</span>
-              <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>Verified Commercial License ✓</span>
+              <span style={{ color: 'var(--color-text-secondary)' }}>Email Verified:</span>
+              <span style={{ color: user.isEmailVerified ? 'var(--color-success)' : 'var(--color-warning)', fontWeight: 600 }}>
+                {user.isEmailVerified ? 'Verified ✓' : 'Not Verified'}
+              </span>
             </div>
-          </div>
-        )}
-
-        {(activeTab === 'Advertisements' || activeTab === 'Campaigns') && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Campaign Placements</h3>
-              <button className="btn btn-primary btn-sm">New Placement</button>
-            </div>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
-              Your advertisements appear as trusted sponsor spotlights across the parent transit tracker and driver navigation consoles.
-            </p>
           </div>
         )}
 
@@ -1209,18 +1549,7 @@ const BusinessDashboardView: FC<{ user: any }> = ({ user }) => {
               <h3 className="panel-title">Billing & Ad Invoices</h3>
             </div>
             <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-              Monthly invoice statements and payment receipt history for marketing campaigns.
-            </p>
-          </div>
-        )}
-
-        {activeTab === 'Analytics' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Reach & Engagement Analytics</h3>
-            </div>
-            <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-              Total reach: 14,250 unique impressions across 8 school routes.
+              Advertising payments are currently in development simulation mode. When Telebirr or CBE Birr integration is activated, invoice statements and payment receipt history will appear here.
             </p>
           </div>
         )}
@@ -1369,6 +1698,11 @@ const AdminDashboardView: FC<{ user: any }> = ({ user }) => {
 
         {/* Real Administrator Review & Approval Queue */}
         <AdminApplicationsQueue />
+
+        {/* Real Advertising Campaign Management */}
+        {activeTab === 'Advertisements' && (
+          <AdminCampaignManager />
+        )}
 
         {/* Open Safety Incidents */}
         <div className="panel-card">
