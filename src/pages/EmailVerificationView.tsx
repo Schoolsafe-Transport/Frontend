@@ -85,10 +85,17 @@ export const EmailVerificationView: FC<EmailVerificationViewProps> = ({
       setResending(true);
       setResendStatus(null);
       const res = await resendVerificationEmailApi(resendEmail.trim());
-      setResendStatus({
-        type: 'success',
-        text: res.message || 'A fresh verification link has been sent to your email address.',
-      });
+      if (res.delivered === false || res.success === false) {
+        setResendStatus({
+          type: 'error',
+          text: res.message || 'Unable to deliver verification email. SMTP configuration is missing or delivery failed.',
+        });
+      } else {
+        setResendStatus({
+          type: 'success',
+          text: res.message || 'A fresh verification link has been sent to your email address.',
+        });
+      }
     } catch (err: any) {
       const errMsg =
         err.response?.data?.message ||
