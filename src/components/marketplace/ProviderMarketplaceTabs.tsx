@@ -4,8 +4,10 @@ import {
   X,
   Phone,
   AlertCircle,
+  Eye,
 } from 'lucide-react';
 import {
+  apiClient,
   getTransportationRequestsApi,
   acceptRequestApi,
   rejectRequestApi,
@@ -55,6 +57,31 @@ export const ProviderMarketplaceTabs: FC<ProviderMarketplaceTabsProps> = ({
   // Active Passengers Manifest State
   const [passengers, setPassengers] = useState<ActivePassenger[]>([]);
   const [passengersLoading, setPassengersLoading] = useState(false);
+  const [providerReceiptPreviewUrl, setProviderReceiptPreviewUrl] = useState<string | null>(null);
+  const [providerReceiptPreviewMime, setProviderReceiptPreviewMime] = useState<string | null>(null);
+
+  const handleOpenProviderReceipt = async (paymentId: string) => {
+    try {
+      const res = await apiClient.get(`/transportation/payments/${paymentId}/receipt`, {
+        responseType: 'blob',
+      });
+      const mime = res.headers['content-type'] || 'image/jpeg';
+      const blob = new Blob([res.data], { type: mime });
+      const objectUrl = URL.createObjectURL(blob);
+      setProviderReceiptPreviewUrl(objectUrl);
+      setProviderReceiptPreviewMime(mime);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Unable to open payment receipt.');
+    }
+  };
+
+  const closeProviderReceipt = () => {
+    if (providerReceiptPreviewUrl) {
+      URL.revokeObjectURL(providerReceiptPreviewUrl);
+    }
+    setProviderReceiptPreviewUrl(null);
+    setProviderReceiptPreviewMime(null);
+  };
 
   const fetchRequests = async () => {
     setRequestsLoading(true);
@@ -484,7 +511,6 @@ export const ProviderMarketplaceTabs: FC<ProviderMarketplaceTabsProps> = ({
               </thead>
               <tbody>
                 {passengers.map((p) => {
-                  const isPaid = p.latestPayment?.status === 'PAID';
                   return (
                     <tr key={p.agreementId}>
                       <td>
@@ -519,9 +545,41 @@ export const ProviderMarketplaceTabs: FC<ProviderMarketplaceTabsProps> = ({
                         <strong>ETB {p.monthlyPrice.toLocaleString()}</strong>
                       </td>
                       <td>
-                        <span className={`badge-status ${isPaid ? 'active' : 'pending'}`}>
-                          {isPaid ? 'PAID' : 'PENDING'}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '9999px',
+                              color: p.latestPayment?.status === 'APPROVED' || p.latestPayment?.status === 'PAID'
+                                ? '#166534'
+                                : p.latestPayment?.status === 'PENDING_REVIEW'
+                                ? '#B45309'
+                                : p.latestPayment?.status === 'REJECTED'
+                                ? '#991B1B'
+                                : '#475569',
+                              backgroundColor: p.latestPayment?.status === 'APPROVED' || p.latestPayment?.status === 'PAID'
+                                ? '#DCFCE7'
+                                : p.latestPayment?.status === 'PENDING_REVIEW'
+                                ? '#FEF3C7'
+                                : p.latestPayment?.status === 'REJECTED'
+                                ? '#FEE2E2'
+                                : '#F1F5F9',
+                            }}
+                          >
+                            {p.latestPayment?.status || 'UNPAID'}
+                          </span>
+                          {p.latestPayment?.receiptUrl && p.latestPayment?.id && (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '0.2rem 0.45rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                              onClick={() => handleOpenProviderReceipt(p.latestPayment!.id!)}
+                            >
+                              <Eye size={12} /> View Receipt
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -529,6 +587,44 @@ export const ProviderMarketplaceTabs: FC<ProviderMarketplaceTabsProps> = ({
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* Secure Receipt Preview Modal for Provider */}
+      {providerReceiptPreviewUrl && (
+        <div className="modal-backdrop">
+          <div className="modal-card" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-header">
+              <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--color-primary)' }}>
+                Passenger Payment Receipt Evidence
+              </h3>
+              <button onClick={closeProviderReceipt}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ textAlign: 'center', padding: '1rem' }}>
+              {providerReceiptPreviewMime === 'application/pdf' ? (
+                <iframe
+                  src={providerReceiptPreviewUrl}
+                  style={{ width: '100%', height: '420px', border: '1px solid #E2E8F0', borderRadius: '6px' }}
+                  title="Receipt Evidence PDF"
+                />
+              ) : (
+                <img
+                  src={providerReceiptPreviewUrl}
+                  alt="Passenger Payment Evidence"
+                  style={{ maxWidth: '100%', maxHeight: '420px', objectFit: 'contain', borderRadius: '6px', border: '1px solid #E2E8F0' }}
+                />
+              )}
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary btn-sm" onClick={closeProviderReceipt}>
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
