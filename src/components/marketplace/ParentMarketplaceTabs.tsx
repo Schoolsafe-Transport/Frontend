@@ -1,4 +1,4 @@
-import { useState, useEffect, FC } from 'react';
+import { useState, useEffect, FC, FormEvent } from 'react';
 import {
   Search,
   MapPin,
@@ -6,15 +6,21 @@ import {
   ShieldCheck,
   CheckCircle2,
   X,
-  CreditCard,
   Ban,
   Car,
   ChevronRight,
   AlertTriangle,
   RotateCcw,
   Star,
+  Upload,
+  Eye,
+  Loader2,
+  AlertCircle,
+  QrCode,
 } from 'lucide-react';
+import { PrintableTransportPassModal } from './PrintableTransportPassModal';
 import {
+  apiClient,
   searchTransportationApi,
   getStudentsApi,
   createTransportationRequestApi,
@@ -22,8 +28,8 @@ import {
   counterOfferApi,
   acceptOfferApi,
   getMyAgreementsApi,
-  payAgreementApi,
   cancelAgreementApi,
+  uploadPaymentReceiptApi,
 } from '../../services/api';
 import {
   TransportationListing,
@@ -90,12 +96,24 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
   const [agreements, setAgreements] = useState<TransportationAgreement[]>([]);
   const [agreementsLoading, setAgreementsLoading] = useState(false);
   const [payingAgreement, setPayingAgreement] = useState<TransportationAgreement | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState('TELEBIRR_SIMULATED');
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [cancellingAgreement, setCancellingAgreement] = useState<TransportationAgreement | null>(null);
   const [cancellationReason, setCancellationReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Manual Payment Receipt Upload & Preview State
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptNotes, setReceiptNotes] = useState('');
+  const [receiptUploadError, setReceiptUploadError] = useState<string | null>(null);
+  const [receiptUploadSuccess, setReceiptUploadSuccess] = useState<string | null>(null);
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
+  const [previewReceiptPaymentId, setPreviewReceiptPaymentId] = useState<string | null>(null);
+  const [previewReceiptUrl, setPreviewReceiptUrl] = useState<string | null>(null);
+  const [previewReceiptMime, setPreviewReceiptMime] = useState<string | null>(null);
+
+  // Student Transport SafePass Modal State
+  const [passModalAgreementId, setPassModalAgreementId] = useState<string | null>(null);
+  const [passModalStudentName, setPassModalStudentName] = useState<string | undefined>(undefined);
 
   // Load listings on mount or search filter change
   const fetchListings = async () => {
@@ -301,18 +319,72 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
     }
   };
 
-  const handleProcessPayment = async () => {
+  const handleUploadReceipt = async (e: FormEvent) => {
+    e.preventDefault();
     if (!payingAgreement) return;
-    setIsProcessingPayment(true);
-    try {
-      await payAgreementApi(payingAgreement.id, paymentMethod);
-      setPayingAgreement(null);
-      fetchAgreements();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Payment simulation failed');
-    } finally {
-      setIsProcessingPayment(false);
+    if (!receiptFile) {
+      setReceiptUploadError('Please select a payment receipt image (JPEG/PNG) or PDF document.');
+      return;
     }
+
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    if (receiptFile.size > MAX_SIZE) {
+      setReceiptUploadError('File size exceeds the 5MB limit. Please upload a smaller receipt file.');
+      return;
+    }
+
+    const allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
+    if (!allowedMimes.includes(receiptFile.type)) {
+      setReceiptUploadError('Invalid file format. Only JPEG, PNG, and PDF files are allowed for payment receipts.');
+      return;
+    }
+
+    setIsUploadingReceipt(true);
+    setReceiptUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append('receipt', receiptFile);
+      if (receiptNotes.trim()) {
+        formData.append('notes', receiptNotes.trim());
+      }
+      await uploadPaymentReceiptApi(payingAgreement.id, formData);
+      setReceiptUploadSuccess('Payment receipt submitted successfully! It is now pending administrative review.');
+      setTimeout(() => {
+        setPayingAgreement(null);
+        setReceiptFile(null);
+        setReceiptNotes('');
+        setReceiptUploadSuccess(null);
+        fetchAgreements();
+      }, 1800);
+    } catch (err: any) {
+      setReceiptUploadError(err.response?.data?.message || 'Failed to upload receipt. Please check your network and try again.');
+    } finally {
+      setIsUploadingReceipt(false);
+    }
+  };
+
+  const handleOpenReceiptPreview = async (paymentId: string, mimeType?: string | null) => {
+    try {
+      const res = await apiClient.get(`/transportation/payments/${paymentId}/receipt`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: res.headers['content-type'] || mimeType || 'image/jpeg' });
+      const objectUrl = URL.createObjectURL(blob);
+      setPreviewReceiptPaymentId(paymentId);
+      setPreviewReceiptUrl(objectUrl);
+      setPreviewReceiptMime(res.headers['content-type'] || mimeType || 'image/jpeg');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Unable to load payment receipt. Ensure you have authorized permissions.');
+    }
+  };
+
+  const closeReceiptPreview = () => {
+    if (previewReceiptUrl) {
+      URL.revokeObjectURL(previewReceiptUrl);
+    }
+    setPreviewReceiptPaymentId(null);
+    setPreviewReceiptUrl(null);
+    setPreviewReceiptMime(null);
   };
 
   const handleConfirmCancellation = async () => {
@@ -1417,23 +1489,67 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                         <div><strong>Vehicle:</strong> {agreement.vehicle.make} {agreement.vehicle.model} ({agreement.vehicle.plateNumber})</div>
                         <div><strong>Provider:</strong> {agreement.provider.firstName} {agreement.provider.lastName} {agreement.provider.phone ? `(${agreement.provider.phone})` : ''}</div>
                         <div>
-                          <strong>Payment Status:</strong>{' '}
-                          <span style={{ fontWeight: 700, color: isPaid ? 'var(--color-success)' : 'var(--color-warning)' }}>
-                            {isPaid ? 'PAID' : 'PENDING'}
-                          </span>
+                          <strong>Payment Review Status:</strong>{' '}
+                          {isPaid ? (
+                            <span style={{ fontWeight: 700, color: '#166534', backgroundColor: '#DCFCE7', padding: '0.2rem 0.55rem', borderRadius: '9999px', fontSize: '0.75rem' }}>
+                              PAID & APPROVED
+                            </span>
+                          ) : latestPayment?.status === 'PENDING_REVIEW' ? (
+                            <span style={{ fontWeight: 700, color: '#B45309', backgroundColor: '#FEF3C7', padding: '0.2rem 0.55rem', borderRadius: '9999px', fontSize: '0.75rem' }}>
+                              RECEIPT PENDING REVIEW
+                            </span>
+                          ) : latestPayment?.status === 'REJECTED' ? (
+                            <span style={{ fontWeight: 700, color: '#991B1B', backgroundColor: '#FEE2E2', padding: '0.2rem 0.55rem', borderRadius: '9999px', fontSize: '0.75rem' }}>
+                              RECEIPT REJECTED
+                            </span>
+                          ) : (
+                            <span style={{ fontWeight: 700, color: '#475569', backgroundColor: '#F1F5F9', padding: '0.2rem 0.55rem', borderRadius: '9999px', fontSize: '0.75rem' }}>
+                              UNPAID
+                            </span>
+                          )}
                           {latestPayment && (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                              {' '}• Ref: {latestPayment.reference}
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginLeft: '0.35rem' }}>
+                              • Ref: {latestPayment.reference}
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
 
+                    {/* Rejection notice box if rejected */}
+                    {latestPayment?.status === 'REJECTED' && (
+                      <div style={{ marginBottom: '1rem', padding: '0.65rem 0.85rem', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '8px', fontSize: '0.825rem', color: '#991B1B' }}>
+                        <strong>Payment Evidence Rejected:</strong> {latestPayment.rejectionReason || 'Receipt was unreadable or transaction could not be confirmed.'}
+                        <div style={{ marginTop: '0.25rem', fontSize: '0.775rem', color: '#B91C1C' }}>
+                          Please re-upload a clear, valid receipt screenshot or bank transfer document below.
+                        </div>
+                      </div>
+                    )}
+
                     {/* Action Buttons */}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
                       {agreement.status === 'ACTIVE' && (
                         <>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            id={`print-pass-btn-${agreement.id}`}
+                            onClick={() => {
+                              setPassModalAgreementId(agreement.id);
+                              setPassModalStudentName(`${agreement.student.firstName} ${agreement.student.lastName}`);
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                              backgroundColor: '#0F766E',
+                              borderColor: '#0F766E',
+                              color: '#FFFFFF',
+                              fontWeight: 600,
+                            }}
+                          >
+                            <QrCode size={15} /> Download / Print Transport Pass
+                          </button>
+
                           <button
                             className="btn btn-secondary btn-sm"
                             style={{ color: 'var(--color-danger)' }}
@@ -1442,14 +1558,17 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                             <Ban size={14} /> Cancel Agreement
                           </button>
 
-                          {!isPaid ? (
+                          {latestPayment?.receiptUrl && (
                             <button
-                              className="btn btn-primary btn-sm"
-                              onClick={() => setPayingAgreement(agreement)}
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleOpenReceiptPreview(latestPayment.id, latestPayment.receiptMimeType)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                             >
-                              <CreditCard size={14} /> Pay Transportation Fee
+                              <Eye size={14} /> View Submitted Receipt
                             </button>
-                          ) : (
+                          )}
+
+                          {isPaid ? (
                             <span
                               style={{
                                 display: 'inline-flex',
@@ -1463,8 +1582,34 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                                 borderRadius: 'var(--radius-full)',
                               }}
                             >
-                              <CheckCircle2 size={14} /> Paid for Current Month
+                              <CheckCircle2 size={14} /> Paid & Verified
                             </span>
+                          ) : latestPayment?.status === 'PENDING_REVIEW' ? (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                setPayingAgreement(agreement);
+                                setReceiptFile(null);
+                                setReceiptNotes('');
+                                setReceiptUploadError(null);
+                              }}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                            >
+                              <Upload size={14} /> Replace Receipt
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={() => {
+                                setPayingAgreement(agreement);
+                                setReceiptFile(null);
+                                setReceiptNotes('');
+                                setReceiptUploadError(null);
+                              }}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                            >
+                              <Upload size={14} /> {latestPayment?.status === 'REJECTED' ? 'Re-upload Payment Receipt' : 'Upload Payment Receipt'}
+                            </button>
                           )}
                         </>
                       )}
@@ -1475,17 +1620,17 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
             </div>
           )}
 
-          {/* Simulated Payment Modal */}
+          {/* Real Payment Receipt Upload Modal */}
           {payingAgreement && (
             <div className="modal-backdrop">
-              <div className="modal-card">
+              <div className="modal-card" style={{ maxWidth: '520px' }}>
                 <div className="modal-header">
                   <div>
-                    <h3 style={{ fontSize: '1.15rem', color: 'var(--color-primary)' }}>
-                      Pay Transportation Fee
+                    <h3 style={{ fontSize: '1.15rem', color: 'var(--color-primary)', margin: 0 }}>
+                      Upload Payment Receipt
                     </h3>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: 0 }}>
-                      Agreement #{payingAgreement.id.slice(0, 8)} • {payingAgreement.student.firstName}
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: '0.2rem 0 0' }}>
+                      Agreement #{payingAgreement.id.slice(0, 8)} • {payingAgreement.student.firstName} {payingAgreement.student.lastName}
                     </p>
                   </div>
                   <button onClick={() => setPayingAgreement(null)}>
@@ -1493,46 +1638,160 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                   </button>
                 </div>
 
-                <div className="modal-body">
-                  <div style={{ padding: '1rem', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--color-border)', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Amount Due</div>
-                    <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '0.25rem' }}>
-                      ETB {payingAgreement.monthlyPrice.toLocaleString()}
+                <form onSubmit={handleUploadReceipt}>
+                  <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {receiptUploadError && (
+                      <div style={{ padding: '0.65rem 0.85rem', backgroundColor: '#FEE2E2', color: '#991B1B', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <AlertCircle size={16} />
+                        <span>{receiptUploadError}</span>
+                      </div>
+                    )}
+
+                    {receiptUploadSuccess && (
+                      <div style={{ padding: '0.65rem 0.85rem', backgroundColor: '#DCFCE7', color: '#166534', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <CheckCircle2 size={16} />
+                        <span>{receiptUploadSuccess}</span>
+                      </div>
+                    )}
+
+                    {/* Amount Card */}
+                    <div style={{ padding: '1rem', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--color-border)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.825rem', color: 'var(--color-text-secondary)' }}>Monthly Transportation Fee Due</div>
+                      <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '0.25rem' }}>
+                        ETB {payingAgreement.monthlyPrice.toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '0.25rem' }}>
+                        Route: {payingAgreement.route.name}
+                      </div>
                     </div>
+
+                    {/* Manual Payment Instructions */}
+                    <div style={{ padding: '0.85rem', backgroundColor: '#EFF6FF', borderRadius: '8px', border: '1px solid #BFDBFE', fontSize: '0.825rem', color: '#1E40AF' }}>
+                      <div style={{ fontWeight: 700, marginBottom: '0.4rem' }}>
+                        Payment Instructions (Outside SchoolSafe):
+                      </div>
+                      <div style={{ marginBottom: '0.35rem' }}>
+                        • <strong>Telebirr:</strong> Send ETB {payingAgreement.monthlyPrice.toLocaleString()} to <code>+251 911 234 567</code> (SchoolSafe / {payingAgreement.provider.firstName})
+                      </div>
+                      <div>
+                        • <strong>CBE Birr / CBE Bank:</strong> Transfer to account <code>1000 2345 6789</code> (SchoolSafe Transit Escrow)
+                      </div>
+                    </div>
+
+                    {/* File Picker */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', color: 'var(--color-text-primary)' }}>
+                        Select Receipt Evidence File (JPEG, PNG, or PDF, max 5MB) *
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,application/pdf"
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) {
+                            setReceiptFile(e.target.files[0]);
+                            setReceiptUploadError(null);
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem',
+                          border: '1px dashed var(--color-border)',
+                          borderRadius: '8px',
+                          backgroundColor: '#F8FAFC',
+                          fontSize: '0.85rem',
+                        }}
+                        required
+                      />
+                      {receiptFile && (
+                        <div style={{ fontSize: '0.8rem', color: '#166534', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <CheckCircle2 size={14} /> Selected: {receiptFile.name} ({Math.round(receiptFile.size / 1024)} KB)
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Transaction Reference / Notes */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', color: 'var(--color-text-primary)' }}>
+                        Transaction Reference / Payer Notes (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        className="filter-input"
+                        placeholder="e.g. Telebirr Ref: TXN982341 or CBE Transfer Ref"
+                        value={receiptNotes}
+                        onChange={(e) => setReceiptNotes(e.target.value)}
+                        style={{ fontSize: '0.85rem', width: '100%' }}
+                      />
+                    </div>
+
+                    <p style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                      * Uploading a receipt provides evidence of payment and creates a pending review record. Financial administrators verify transactions before granting approved status.
+                    </p>
                   </div>
 
-                  <div className="filter-group">
-                    <label className="filter-label">Select Payment Method (Simulation)</label>
-                    <select
-                      className="filter-input"
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
+                  <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setPayingAgreement(null)}
+                      disabled={isUploadingReceipt}
                     >
-                      <option value="TELEBIRR_SIMULATED">Telebirr (Simulated)</option>
-                      <option value="CBE_BIRR_SIMULATED">CBE Birr (Simulated)</option>
-                      <option value="SIMULATED_TRANSFER">Bank Direct Transfer</option>
-                    </select>
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary btn-sm"
+                      disabled={isUploadingReceipt || !receiptFile}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      {isUploadingReceipt ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                      {isUploadingReceipt ? 'Uploading Receipt...' : 'Submit Receipt for Review'}
+                    </button>
                   </div>
+                </form>
+              </div>
+            </div>
+          )}
 
-                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-                    * In this release, payment execution is simulated. A permanent transaction ledger record with unique reference code will be generated upon confirmation.
-                  </p>
+          {/* Secure Receipt Preview Modal for Parents */}
+          {previewReceiptUrl && (
+            <div className="modal-backdrop">
+              <div className="modal-card" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+                <div className="modal-header">
+                  <div>
+                    <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--color-primary)' }}>
+                      Submitted Payment Evidence
+                    </h3>
+                    {previewReceiptPaymentId && (
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                        Payment Record #{previewReceiptPaymentId.slice(0, 8)}
+                      </p>
+                    )}
+                  </div>
+                  <button onClick={closeReceiptPreview}>
+                    <X size={20} />
+                  </button>
                 </div>
 
-                <div className="modal-footer">
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setPayingAgreement(null)}
-                    disabled={isProcessingPayment}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={handleProcessPayment}
-                    disabled={isProcessingPayment}
-                  >
-                    {isProcessingPayment ? 'Processing...' : 'Confirm Simulated Payment'}
+                <div className="modal-body" style={{ textAlign: 'center', padding: '1rem' }}>
+                  {previewReceiptMime === 'application/pdf' ? (
+                    <iframe
+                      src={previewReceiptUrl}
+                      style={{ width: '100%', height: '420px', border: '1px solid #E2E8F0', borderRadius: '6px' }}
+                      title="Submitted Receipt PDF"
+                    />
+                  ) : (
+                    <img
+                      src={previewReceiptUrl}
+                      alt="Submitted Payment Evidence"
+                      style={{ maxWidth: '100%', maxHeight: '420px', objectFit: 'contain', borderRadius: '6px', border: '1px solid #E2E8F0' }}
+                    />
+                  )}
+                </div>
+
+                <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button className="btn btn-secondary btn-sm" onClick={closeReceiptPreview}>
+                    Close
                   </button>
                 </div>
               </div>
@@ -1594,6 +1853,17 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
               </div>
             </div>
           )}
+
+          {/* Printable Student Transport QR Pass Modal */}
+          <PrintableTransportPassModal
+            isOpen={!!passModalAgreementId}
+            agreementId={passModalAgreementId}
+            studentName={passModalStudentName}
+            onClose={() => {
+              setPassModalAgreementId(null);
+              setPassModalStudentName(undefined);
+            }}
+          />
         </div>
       )}
     </div>
