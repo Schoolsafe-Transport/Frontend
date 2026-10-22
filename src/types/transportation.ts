@@ -157,9 +157,18 @@ export interface PaymentRecord {
   agreementId: string;
   amount: number;
   currency: string;
-  status: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
+  status: 'UNPAID' | 'PENDING' | 'PENDING_REVIEW' | 'APPROVED' | 'PAID' | 'REJECTED' | 'REFUND_REQUIRED' | 'FAILED' | 'REFUNDED' | 'CANCELLED' | string;
   paymentMethod: string;
   reference: string;
+  receiptUrl?: string | null;
+  receiptOriginalName?: string | null;
+  receiptMimeType?: string | null;
+  receiptSize?: number | null;
+  receiptUploadedAt?: string | null;
+  reviewedById?: string | null;
+  reviewedAt?: string | null;
+  rejectionReason?: string | null;
+  notes?: string | null;
   paidAt?: string;
   createdAt: string;
 }
@@ -192,8 +201,13 @@ export interface ActivePassenger {
   monthlyPrice: number;
   agreementStatus: string;
   latestPayment?: {
+    id?: string;
     status: string;
     amount: number;
+    receiptUrl?: string | null;
+    receiptUploadedAt?: string | null;
+    reference?: string;
+    rejectionReason?: string | null;
     paidAt?: string;
   } | null;
 }
