@@ -8,6 +8,7 @@ import {
   Plus,
   ShieldCheck,
   Radio,
+  QrCode,
 } from 'lucide-react';
 import {
   getTripsApi,
@@ -15,6 +16,7 @@ import {
   updateTripStatusApi,
   getTripPassengersApi,
   recordBoardingApi,
+  scanStudentPassApi,
   getProviderRoutesApi,
 } from '../../services/api';
 import { getSocket } from '../../services/socket';
@@ -37,6 +39,15 @@ export const TripsAndBoardingPanel: FC<{ user?: any; isParent?: boolean }> = ({
   const [tripType, setTripType] = useState<string>('MORNING');
   const [tripNotes, setTripNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
+
+  // QR SafePass Scanner State (Task 4 & 5)
+  const [showQrScanModal, setShowQrScanModal] = useState<boolean>(false);
+  const [qrTokenInput, setQrTokenInput] = useState<string>('');
+  const [scanEventType, setScanEventType] = useState<'BOARDED' | 'ARRIVED_AT_SCHOOL' | 'BOARDED_FOR_RETURN' | 'DROPPED_OFF'>('BOARDED');
+  const [scanStopInput, setScanStopInput] = useState<string>('');
+  const [scanning, setScanning] = useState<boolean>(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanResult, setScanResult] = useState<any | null>(null);
 
   const fetchTrips = async () => {
     try {
@@ -154,6 +165,41 @@ export const TripsAndBoardingPanel: FC<{ user?: any; isParent?: boolean }> = ({
       setTimeout(() => setActionSuccess(null), 5000);
     } catch (err: any) {
       setActionError(err.response?.data?.message || 'Failed to record student boarding');
+    }
+  };
+
+  const handleScanPass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTripId || !qrTokenInput.trim()) {
+      setScanError('Please enter or scan a valid QR pass token');
+      return;
+    }
+    try {
+      setScanning(true);
+      setScanError(null);
+      setScanResult(null);
+      const res = await scanStudentPassApi(selectedTripId, {
+        qrToken: qrTokenInput.trim(),
+        eventType: scanEventType,
+        scannedStop: scanStopInput.trim() || undefined,
+      });
+      setScanResult(res.data);
+      setActionSuccess(res.message);
+
+      // Refresh passengers with authoritative data
+      const updated = await getTripPassengersApi(selectedTripId);
+      setPassengers(updated || []);
+
+      setTimeout(() => {
+        setShowQrScanModal(false);
+        setScanResult(null);
+        setQrTokenInput('');
+        setScanStopInput('');
+      }, 2500);
+    } catch (err: any) {
+      setScanError(err.response?.data?.message || 'QR token verification failed');
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -339,12 +385,40 @@ export const TripsAndBoardingPanel: FC<{ user?: any; isParent?: boolean }> = ({
                   <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-primary)' }}>
                     Student Passenger Manifest ({passengers.length} Assigned)
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-                    Boarded:{' '}
-                    <strong style={{ color: 'var(--color-success)' }}>
-                      {passengers.filter((p) => p.status === 'BOARDED' || p.status === 'DROPPED_OFF').length}
-                    </strong>{' '}
-                    / {passengers.length}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                      Boarded:{' '}
+                      <strong style={{ color: 'var(--color-success)' }}>
+                        {passengers.filter((p) => p.status === 'BOARDED' || p.status === 'ARRIVED_AT_SCHOOL' || p.status === 'BOARDED_FOR_RETURN' || p.status === 'DROPPED_OFF').length}
+                      </strong>{' '}
+                      / {passengers.length}
+                    </div>
+
+                    {!isParent && selectedTrip && selectedTrip.status !== 'COMPLETED' && selectedTrip.status !== 'CANCELLED' && (
+                      <button
+                        type="button"
+                        id="scan-student-qr-btn"
+                        className="btn btn-primary btn-sm"
+                        onClick={() => {
+                          setQrTokenInput('');
+                          setScanError(null);
+                          setScanResult(null);
+                          setShowQrScanModal(true);
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          backgroundColor: '#0F766E',
+                          borderColor: '#0F766E',
+                          fontWeight: 600,
+                          fontSize: '0.78rem',
+                          padding: '0.35rem 0.75rem',
+                        }}
+                      >
+                        <QrCode size={14} /> Scan Student QR
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -546,6 +620,121 @@ export const TripsAndBoardingPanel: FC<{ user?: any; isParent?: boolean }> = ({
                   disabled={submitting}
                 >
                   {submitting ? 'Scheduling...' : 'Launch Run'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TASK 4: QR SafePass Scanner Modal */}
+      {showQrScanModal && (
+        <div className="modal-backdrop">
+          <div className="modal-card" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#0F766E', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <QrCode size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', color: 'var(--color-primary)', margin: 0 }}>
+                    Scan Student SafePass
+                  </h3>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+                    Official QR Transit Verification • Trip #{selectedTrip?.id.slice(0, 8)}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQrScanModal(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748B' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleScanPass} style={{ padding: '1.25rem' }}>
+              {scanError && (
+                <div style={{ padding: '0.75rem', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '8px', color: '#991B1B', fontSize: '0.825rem', marginBottom: '1rem' }}>
+                  <strong>Scan Rejected:</strong> {scanError}
+                </div>
+              )}
+
+              {scanResult && (
+                <div style={{ padding: '0.85rem', backgroundColor: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '8px', color: '#065F46', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>✓ Verified: {scanResult.student.firstName} {scanResult.student.lastName}</div>
+                  <div style={{ fontSize: '0.8rem', marginTop: '0.2rem' }}>
+                    School: {scanResult.student.schoolName} • Stop: {scanResult.student.pickupStopName}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#047857', marginTop: '0.25rem' }}>
+                    Status Updated: {scanResult.passengerStatus} (Authoritative Server Timestamp Recorded)
+                  </div>
+                </div>
+              )}
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                  Opaque QR Token / Scanned Payload
+                </label>
+                <input
+                  type="text"
+                  placeholder="Paste or scan ssp_live_... token"
+                  value={qrTokenInput}
+                  onChange={(e) => setQrTokenInput(e.target.value)}
+                  autoFocus
+                  style={{ width: '100%', padding: '0.65rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', fontFamily: 'monospace', fontSize: '0.85rem' }}
+                />
+                <span style={{ fontSize: '0.72rem', color: '#64748B', display: 'block', marginTop: '0.25rem' }}>
+                  Reads cryptographically secure opaque token from printed or mobile card.
+                </span>
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                  Transit Event Type (State Machine)
+                </label>
+                <select
+                  value={scanEventType}
+                  onChange={(e) => setScanEventType(e.target.value as any)}
+                  style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', fontSize: '0.85rem' }}
+                >
+                  <option value="BOARDED">BOARDED (Morning Home Pickup Check-in)</option>
+                  <option value="ARRIVED_AT_SCHOOL">ARRIVED_AT_SCHOOL (School Drop-Off Safe Arrival)</option>
+                  <option value="BOARDED_FOR_RETURN">BOARDED_FOR_RETURN (Afternoon School Departure)</option>
+                  <option value="DROPPED_OFF">DROPPED_OFF (Afternoon Home Drop-Off Completed)</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                  Scanned Pickup Stop (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Bole Medhanealem Stop"
+                  value={scanStopInput}
+                  onChange={(e) => setScanStopInput(e.target.value)}
+                  style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowQrScanModal(false)}
+                  disabled={scanning}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={scanning || !qrTokenInput.trim()}
+                  style={{ backgroundColor: '#0F766E', borderColor: '#0F766E', fontWeight: 600 }}
+                >
+                  {scanning ? 'Verifying SafePass...' : 'Authorize Boarding'}
                 </button>
               </div>
             </form>
