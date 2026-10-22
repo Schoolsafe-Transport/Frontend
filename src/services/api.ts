@@ -99,7 +99,7 @@ export const verifyEmailApi = async (token: string): Promise<{ success: boolean;
   return response.data;
 };
 
-export const resendVerificationEmailApi = async (email?: string): Promise<{ success: boolean; message: string }> => {
+export const resendVerificationEmailApi = async (email?: string): Promise<{ success: boolean; message: string; delivered?: boolean }> => {
   const response = await apiClient.post('/auth/resend-verification', { email });
   return response.data;
 };
@@ -649,5 +649,236 @@ export const reviewAdminApplicationApi = async (
   const response = await apiClient.post(`/admin/applications/${userId}/review`, { decision, reason });
   return response.data.data;
 };
+
+// ==========================================
+// Payment Receipt & Multi-Role Review API
+// ==========================================
+
+export interface PaymentRecord {
+  id: string;
+  agreementId: string;
+  payerId: string;
+  receiverId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  paymentMethod: string;
+  reference: string;
+  receiptUrl?: string | null;
+  receiptOriginalName?: string | null;
+  receiptMimeType?: string | null;
+  receiptSize?: number | null;
+  receiptUploadedAt?: string | null;
+  reviewedById?: string | null;
+  reviewedAt?: string | null;
+  rejectionReason?: string | null;
+  notes?: string | null;
+  paidAt?: string | null;
+  createdAt: string;
+  parent?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string | null;
+  };
+  provider?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string | null;
+  };
+  student?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    schoolName: string;
+  };
+  route?: {
+    id: string;
+    name: string;
+    origin: string;
+    destinationSchool: string;
+  };
+  vehicle?: {
+    id: string;
+    make: string;
+    model: string;
+    plateNumber: string;
+  };
+  reviewedBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+}
+
+export const uploadPaymentReceiptApi = async (agreementId: string, formData: FormData) => {
+  const response = await apiClient.post(`/transportation/agreements/${agreementId}/payments/upload-receipt`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data.data;
+};
+
+export const getAdminPaymentsApi = async (params?: {
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ total: number; page: number; limit: number; totalPages: number; payments: PaymentRecord[] }> => {
+  const response = await apiClient.get('/admin/payments', { params });
+  return response.data.data;
+};
+
+export const reviewAdminPaymentApi = async (
+  paymentId: string,
+  payload: {
+    decision: 'APPROVE' | 'REJECT' | 'REQUEST_NEW_RECEIPT';
+    reason?: string;
+  }
+) => {
+  const response = await apiClient.patch(`/admin/payments/${paymentId}/review`, payload);
+  return response.data.data;
+};
+
+export const getPaymentReceiptUrl = (paymentId: string) => {
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  return `${baseUrl}/transportation/payments/${paymentId}/receipt`;
+};
+
+// ==========================================
+// Student Transport QR Pass & Boarding API
+// ==========================================
+
+export interface StudentTransportPassData {
+  id: string;
+  passCode: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'REVOKED' | 'EXPIRED';
+  issuedAt: string;
+  lastScannedAt?: string | null;
+  scanCount: number;
+  qrDataUrl: string;
+  qrToken: string;
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    grade?: string;
+    schoolName: string;
+    schoolBranch?: string;
+    emergencyPhone?: string;
+  };
+  school: {
+    name: string;
+    branch: string;
+  };
+  provider: {
+    id: string;
+    name: string;
+    phone?: string;
+    isVerified: boolean;
+  };
+  vehicle: {
+    id: string;
+    make: string;
+    model: string;
+    plateNumber: string;
+  };
+  route: {
+    id: string;
+    name: string;
+    origin: string;
+    destinationSchool: string;
+    pickupStopName: string;
+    pickupTimeMorning?: string;
+    dropoffTimeAfternoon?: string;
+  };
+  agreement: {
+    id: string;
+    status: string;
+    monthlyPrice: number;
+    currency: string;
+  };
+  branding: {
+    appName: string;
+    systemName: string;
+    tagline: string;
+  };
+}
+
+export interface StudentTripStatusData {
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    schoolName: string;
+    schoolBranch?: string;
+  };
+  hasActiveBooking: boolean;
+  pass: {
+    id: string;
+    passCode: string;
+    status: string;
+  } | null;
+  statusLabel: string;
+  statusBadgeColor: string;
+  detailMessage: string;
+  latestEvent: {
+    id: string;
+    eventType: string;
+    timestamp: string;
+    scannedStop?: string;
+    tripId: string;
+    driverName?: string | null;
+    driverPhone?: string | null;
+    vehiclePlate?: string | null;
+  } | null;
+  activeAgreement: {
+    id: string;
+    routeId: string;
+    routeName: string;
+    pickupStopName: string;
+    providerName: string;
+    providerPhone?: string;
+    vehiclePlate: string;
+    vehicleModel: string;
+  } | null;
+}
+
+export const getStudentTransportPassApi = async (agreementId: string): Promise<StudentTransportPassData> => {
+  const response = await apiClient.get(`/transportation/agreements/${agreementId}/pass`);
+  return response.data.data;
+};
+
+export const regenerateStudentTransportPassApi = async (agreementId: string): Promise<StudentTransportPassData> => {
+  const response = await apiClient.post(`/transportation/agreements/${agreementId}/pass/regenerate`);
+  return response.data.data;
+};
+
+export const getStudentTripStatusApi = async (studentId: string): Promise<StudentTripStatusData> => {
+  const response = await apiClient.get(`/transportation/students/${studentId}/trip-status`);
+  return response.data.data;
+};
+
+export const scanStudentPassApi = async (
+  tripId: string,
+  payload: {
+    qrToken: string;
+    eventType: 'BOARDED' | 'ARRIVED_AT_SCHOOL' | 'BOARDED_FOR_RETURN' | 'DROPPED_OFF';
+    scannedStop?: string;
+    notes?: string;
+    latitude?: number;
+    longitude?: number;
+  }
+) => {
+  const response = await apiClient.post(`/transportation/trips/${tripId}/scan-pass`, payload);
+  return response.data;
+};
+
+
 
 
