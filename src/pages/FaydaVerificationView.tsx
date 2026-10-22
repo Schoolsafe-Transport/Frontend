@@ -31,7 +31,6 @@ export const FaydaVerificationView: FC<FaydaVerificationViewProps> = ({
   const [otp, setOtp] = useState('');
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [maskedPhone, setMaskedPhone] = useState<string>('');
-  const [simulatedOtp, setSimulatedOtp] = useState<string | null>(null);
   const [consentAgreed, setConsentAgreed] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +42,6 @@ export const FaydaVerificationView: FC<FaydaVerificationViewProps> = ({
     setOtp('');
     setTransactionId(null);
     setMaskedPhone('');
-    setSimulatedOtp(null);
     setError(null);
     setSuccess(null);
     setMaskedVerifiedId(null);
@@ -66,9 +64,6 @@ export const FaydaVerificationView: FC<FaydaVerificationViewProps> = ({
       if (res.success) {
         setTransactionId(res.data.transactionId);
         setMaskedPhone(res.data.maskedPhone || '+251 9*** ***01');
-        if (res.data.simulatedOtp) {
-          setSimulatedOtp(res.data.simulatedOtp);
-        }
         setStep(2);
       }
     } catch (err: any) {
@@ -375,21 +370,6 @@ export const FaydaVerificationView: FC<FaydaVerificationViewProps> = ({
                 </span>
               </div>
 
-              {simulatedOtp && (
-                <div
-                  style={{
-                    padding: '0.5rem 0.75rem',
-                    backgroundColor: '#FEF3C7',
-                    border: '1px solid #FCD34D',
-                    borderRadius: '6px',
-                    fontSize: '0.8rem',
-                    color: '#92400E',
-                    marginBottom: '1rem',
-                  }}
-                >
-                  <strong>Fayda Sandbox:</strong> Use test OTP: <code>{simulatedOtp}</code>
-                </div>
-              )}
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label htmlFor="verify-otp-input" style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem' }}>
