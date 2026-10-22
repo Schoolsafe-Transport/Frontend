@@ -30,7 +30,9 @@ import {
   Search,
   Loader2,
   X,
+  QrCode,
 } from 'lucide-react';
+import { PrintableTransportPassModal } from '../components/marketplace/PrintableTransportPassModal';
 import { ParentMarketplaceTabs } from '../components/marketplace/ParentMarketplaceTabs';
 import { ProviderMarketplaceTabs } from '../components/marketplace/ProviderMarketplaceTabs';
 import { NotificationsPanel } from '../components/dashboard/NotificationsPanel';
@@ -41,8 +43,16 @@ import { ParentSafetyPanel } from '../components/dashboard/ParentSafetyPanel';
 import { UserProfilePanel } from '../components/dashboard/UserProfilePanel';
 import { ActiveAdBanner } from '../components/dashboard/ActiveAdBanner';
 import { FaydaVerificationModal } from '../components/dashboard/FaydaVerificationModal';
-import { resendVerificationEmailApi, getStudentsApi, createStudentApi } from '../services/api';
+import {
+  resendVerificationEmailApi,
+  getStudentsApi,
+  createStudentApi,
+  getMyAgreementsApi,
+  getStudentTripStatusApi,
+  StudentTripStatusData,
+} from '../services/api';
 import { AdminApplicationsQueue } from '../components/dashboard/AdminApplicationsQueue';
+import { AdminPaymentsReview } from '../components/dashboard/AdminPaymentsReview';
 import { BusinessCampaignManager } from '../components/dashboard/BusinessCampaignManager';
 import { AdminCampaignManager } from '../components/dashboard/AdminCampaignManager';
 
@@ -63,10 +73,17 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
       setResendingEmail(true);
       setResendNotice(null);
       const res = await resendVerificationEmailApi(user.email);
-      setResendNotice({
-        type: 'success',
-        text: res.message || 'A fresh email verification link has been dispatched to your inbox.',
-      });
+      if (res.delivered === false || res.success === false) {
+        setResendNotice({
+          type: 'error',
+          text: res.message || 'Could not deliver verification email. Outbound SMTP delivery failed.',
+        });
+      } else {
+        setResendNotice({
+          type: 'success',
+          text: res.message || 'A fresh email verification link has been dispatched to your inbox.',
+        });
+      }
     } catch (err: any) {
       setResendNotice({
         type: 'error',
@@ -345,6 +362,10 @@ const ParentDashboardView: FC<{
 
   const [students, setStudents] = useState<any[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(true);
+  const [agreements, setAgreements] = useState<any[]>([]);
+  const [tripStatuses, setTripStatuses] = useState<Record<string, StudentTripStatusData>>({});
+  const [passModalAgreementId, setPassModalAgreementId] = useState<string | null>(null);
+  const [passModalStudentName, setPassModalStudentName] = useState<string | undefined>(undefined);
   const [showRegisterChildModal, setShowRegisterChildModal] = useState(false);
   const [registeringChild, setRegisteringChild] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
@@ -368,6 +389,25 @@ const ParentDashboardView: FC<{
     try {
       const data = await getStudentsApi();
       setStudents(data || []);
+
+      // Fetch active agreements and student trip statuses
+      try {
+        const agrs = await getMyAgreementsApi();
+        setAgreements(agrs || []);
+      } catch {}
+
+      if (data && data.length > 0) {
+        const statuses: Record<string, StudentTripStatusData> = {};
+        await Promise.all(
+          data.map(async (child: any) => {
+            try {
+              const status = await getStudentTripStatusApi(child.id);
+              statuses[child.id] = status;
+            } catch {}
+          })
+        );
+        setTripStatuses(statuses);
+      }
     } catch (_err) {
       setStudents([]);
     } finally {
@@ -848,6 +888,108 @@ const ParentDashboardView: FC<{
                           </div>
                         )}
                       </div>
+
+                      {/* TASK 6: Parent Live Trip Status Display */}
+                      {tripStatuses[child.id] && (
+                        <div
+                          style={{
+                            marginTop: '0.75rem',
+                            padding: '0.65rem 0.85rem',
+                            backgroundColor: '#F0FDFA',
+                            border: '1px solid #CCFBF1',
+                            borderRadius: '8px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#0F766E', fontWeight: 700 }}>
+                              🚌 Today's Transit Status
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                padding: '0.15rem 0.55rem',
+                                borderRadius: '9999px',
+                                backgroundColor:
+                                  tripStatuses[child.id].latestEvent?.eventType === 'ARRIVED_AT_SCHOOL' ||
+                                  tripStatuses[child.id].latestEvent?.eventType === 'DROPPED_OFF'
+                                    ? '#DCFCE7'
+                                    : tripStatuses[child.id].latestEvent
+                                    ? '#E0F2FE'
+                                    : '#F1F5F9',
+                                color:
+                                  tripStatuses[child.id].latestEvent?.eventType === 'ARRIVED_AT_SCHOOL' ||
+                                  tripStatuses[child.id].latestEvent?.eventType === 'DROPPED_OFF'
+                                    ? '#166534'
+                                    : tripStatuses[child.id].latestEvent
+                                    ? '#0369A1'
+                                    : '#475569',
+                              }}
+                            >
+                              ● {tripStatuses[child.id].statusLabel}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: '#334155' }}>
+                            {tripStatuses[child.id].detailMessage}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* TASK 1 & 2: Transport Pass Button or Booking Required Notice */}
+                      {(() => {
+                        const activeAgreement = agreements.find(
+                          (a: any) => a.studentId === child.id && a.status === 'ACTIVE'
+                        );
+                        return activeAgreement ? (
+                          <div style={{ marginTop: '0.75rem' }}>
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              id={`print-child-pass-btn-${child.id}`}
+                              onClick={() => {
+                                setPassModalAgreementId(activeAgreement.id);
+                                setPassModalStudentName(`${child.firstName} ${child.lastName}`);
+                              }}
+                              style={{
+                                width: '100%',
+                                backgroundColor: '#0F766E',
+                                borderColor: '#0F766E',
+                                color: '#FFFFFF',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.4rem',
+                                fontWeight: 600,
+                                padding: '0.5rem 0.85rem',
+                                fontSize: '0.825rem',
+                                borderRadius: '8px',
+                              }}
+                            >
+                              <QrCode size={15} /> Download / Print Transport Pass
+                            </button>
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              marginTop: '0.75rem',
+                              padding: '0.55rem 0.75rem',
+                              backgroundColor: '#FFFBEB',
+                              border: '1px dashed #FDE68A',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              color: '#B45309',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                            }}
+                          >
+                            <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                            <span>
+                              No accepted booking yet. Obtain an accepted booking from a verified provider to generate your child's transport pass.
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid #F1F5F9' }}>
@@ -1194,6 +1336,17 @@ const ParentDashboardView: FC<{
           </div>
         </div>
       )}
+
+      {/* TASK 2: Printable Student Transport QR Pass Modal */}
+      <PrintableTransportPassModal
+        isOpen={!!passModalAgreementId}
+        agreementId={passModalAgreementId}
+        studentName={passModalStudentName}
+        onClose={() => {
+          setPassModalAgreementId(null);
+          setPassModalStudentName(undefined);
+        }}
+      />
     </div>
   );
 };
@@ -1697,10 +1850,17 @@ const AdminDashboardView: FC<{ user: any }> = ({ user }) => {
         </div>
 
         {/* Real Administrator Review & Approval Queue */}
-        <AdminApplicationsQueue />
+        {(activeTab === 'Dashboard' || activeTab === 'Users' || activeTab === 'Providers') && (
+          <AdminApplicationsQueue />
+        )}
+
+        {/* Real Payment Receipts Review & Verification */}
+        {(activeTab === 'Dashboard' || activeTab === 'Payments') && (
+          <AdminPaymentsReview />
+        )}
 
         {/* Real Advertising Campaign Management */}
-        {activeTab === 'Advertisements' && (
+        {(activeTab === 'Advertisements' || activeTab === 'Businesses') && (
           <AdminCampaignManager />
         )}
 
