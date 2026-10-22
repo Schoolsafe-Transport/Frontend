@@ -30,7 +30,6 @@ export const FaydaVerificationModal: FC<FaydaModalProps> = ({ isOpen, onClose, o
   const [otp, setOtp] = useState('');
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [maskedPhone, setMaskedPhone] = useState<string>('');
-  const [simulatedOtp, setSimulatedOtp] = useState<string | null>(null);
   const [consentAgreed, setConsentAgreed] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +43,6 @@ export const FaydaVerificationModal: FC<FaydaModalProps> = ({ isOpen, onClose, o
     setOtp('');
     setTransactionId(null);
     setMaskedPhone('');
-    setSimulatedOtp(null);
     setError(null);
     setSuccess(null);
     setMaskedVerifiedId(null);
@@ -67,9 +65,6 @@ export const FaydaVerificationModal: FC<FaydaModalProps> = ({ isOpen, onClose, o
       if (res.success) {
         setTransactionId(res.data.transactionId);
         setMaskedPhone(res.data.maskedPhone || '+251 9*** ***01');
-        if (res.data.simulatedOtp) {
-          setSimulatedOtp(res.data.simulatedOtp);
-        }
         setStep(2);
       }
     } catch (err: any) {
@@ -462,21 +457,6 @@ export const FaydaVerificationModal: FC<FaydaModalProps> = ({ isOpen, onClose, o
                     </span>
                   </div>
 
-                  {simulatedOtp && (
-                    <div
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        backgroundColor: '#FEF3C7',
-                        border: '1px solid #FCD34D',
-                        borderRadius: '6px',
-                        fontSize: '0.8rem',
-                        color: '#92400E',
-                        marginBottom: '1rem',
-                      }}
-                    >
-                      <strong>Fayda Sandbox:</strong> Use test OTP: <code>{simulatedOtp}</code>
-                    </div>
-                  )}
 
                   <div style={{ marginBottom: '1rem' }}>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', color: '#334155' }}>
