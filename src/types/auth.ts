@@ -32,6 +32,10 @@ export interface User {
   emailVerifiedAt?: string | null;
   rejectionReason?: string | null;
   profilePhoto?: string | null;
+  businessName?: string | null;
+  licenseNumber?: string | null;
+  serviceArea?: string | null;
+  registrationStep?: string | null;
   createdAt: string;
   updatedAt: string;
 }
