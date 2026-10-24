@@ -20,6 +20,7 @@ import {
   getProviderRoutesApi,
 } from '../../services/api';
 import { getSocket } from '../../services/socket';
+import { LiveTrackingMap } from './LiveTrackingMap';
 
 export const TripsAndBoardingPanel: FC<{ user?: any; isParent?: boolean }> = ({
   isParent = false,
@@ -377,6 +378,28 @@ export const TripsAndBoardingPanel: FC<{ user?: any; isParent?: boolean }> = ({
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* Live Interactive GPS Telemetry & Route Map */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <LiveTrackingMap
+                  tripId={selectedTrip.id}
+                  tripStatus={selectedTrip.status}
+                  routeName={selectedTrip.route?.name || 'Transit Run'}
+                  driverName={
+                    selectedTrip.driver
+                      ? `${selectedTrip.driver.firstName} ${selectedTrip.driver.lastName}`
+                      : selectedTrip.route?.provider
+                      ? `${selectedTrip.route.provider.firstName} ${selectedTrip.route.provider.lastName}`
+                      : 'Assigned Transit Driver'
+                  }
+                  vehiclePlate={
+                    selectedTrip.vehicle
+                      ? `${selectedTrip.vehicle.make} ${selectedTrip.vehicle.model} • ${selectedTrip.vehicle.plateNumber}`
+                      : 'Transit Vehicle'
+                  }
+                  isProvider={!isParent}
+                />
               </div>
 
               {/* Passenger Boarding Manifest */}
