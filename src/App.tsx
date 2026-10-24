@@ -14,7 +14,8 @@ import { PrivacyPolicyView, TermsOfServiceView, HelpCenterView } from './pages/P
 import { HomeImageSlider } from './components/HomeImageSlider';
 import { FaydaVerificationView } from './pages/FaydaVerificationView';
 import { EmailVerificationView } from './pages/EmailVerificationView';
-import { UserRole } from './types/auth';
+import { AdminDashboardRoot } from './pages/admin/AdminDashboardRoot';
+import { User, UserRole } from './types/auth';
 import {
   ShieldCheck,
   MapPin,
@@ -48,10 +49,14 @@ export type ViewState =
   | 'REGISTER'
   | 'FORGOT_PASSWORD'
   | 'VERIFY_FAYDA'
-  | 'VERIFY_EMAIL';
+  | 'VERIFY_EMAIL'
+  | 'ADMIN';
 
 export const getViewFromPath = (pathname: string): ViewState => {
   const cleanPath = pathname.toLowerCase().replace(/\/$/, '') || '/';
+  if (cleanPath === '/admin' || cleanPath.startsWith('/admin/')) {
+    return 'ADMIN';
+  }
   switch (cleanPath) {
     case '/about':
       return 'ABOUT';
@@ -100,6 +105,10 @@ export const getViewFromPath = (pathname: string): ViewState => {
 
 export const getPathFromView = (view: ViewState): string => {
   switch (view) {
+    case 'ADMIN':
+      return typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
+        ? window.location.pathname
+        : '/admin';
     case 'ABOUT':
       return '/about';
     case 'CONTACT':
@@ -134,8 +143,29 @@ export const getPathFromView = (view: ViewState): string => {
   }
 };
 
+export const checkUserVerificationStatus = (user: User | null): {
+  canAccessDashboard: boolean;
+  requiredView?: ViewState;
+  reason?: 'UNAUTHENTICATED' | 'EMAIL_VERIFICATION_REQUIRED';
+} => {
+  if (!user) {
+    return { canAccessDashboard: false, requiredView: 'LOGIN', reason: 'UNAUTHENTICATED' };
+  }
+
+  // 1. Email verification required for all roles
+  if (!user.isEmailVerified) {
+    return {
+      canAccessDashboard: false,
+      requiredView: 'VERIFY_EMAIL',
+      reason: 'EMAIL_VERIFICATION_REQUIRED',
+    };
+  }
+
+  return { canAccessDashboard: true };
+};
+
 const MainContent: FC = () => {
-  const { user, refreshUser, clearError } = useAuth();
+  const { user, refreshUser, clearError, logout } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>(() => {
     if (typeof window !== 'undefined') {
       return getViewFromPath(window.location.pathname);
@@ -201,10 +231,22 @@ const MainContent: FC = () => {
     }
   }, [refreshUser]);
 
-  // Route guard: if an already verified parent accesses verification view, redirect to dashboard
+  // Centralized Route Guard:
+  // Before granting access to a protected dashboard, enforce account verification state
   useEffect(() => {
-    if (user && user.isVerified && currentView === 'VERIFY_FAYDA') {
-      navigateTo('LANDING');
+    if (user) {
+      const status = checkUserVerificationStatus(user);
+      if (!status.canAccessDashboard && status.requiredView) {
+        // If unverified user attempts to view the dashboard directly, redirect to required verification view
+        if (currentView === 'LANDING') {
+          navigateTo(status.requiredView);
+        }
+      } else if (status.canAccessDashboard) {
+        // If user is already fully verified and visits verification view, redirect to dashboard
+        if (currentView === 'VERIFY_FAYDA') {
+          navigateTo('LANDING');
+        }
+      }
     }
   }, [user, currentView]);
 
@@ -220,9 +262,174 @@ const MainContent: FC = () => {
   const openHelp = () => navigateTo('HELP');
   const openHome = () => navigateTo('LANDING');
 
+  // Dedicated Admin Console: System Administrators receive AdminDashboardRoot layout directly!
+  if (user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
+    if (currentView === 'LANDING' || currentView === 'ADMIN') {
+      return <AdminDashboardRoot />;
+    }
+  }
+
+  // Guard for /admin path when user is unauthenticated or not an admin
+  if (currentView === 'ADMIN') {
+    if (!user) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--color-bg)' }}>
+          <header className="navbar-clean">
+            <div className="container navbar-inner">
+              <div className="brand-link" onClick={openHome} role="button" tabIndex={0}>
+                <div className="brand-logo-wrap">
+                  <img src="/logo-shield.png" alt="SchoolSafe Logo" className="brand-logo-img" />
+                </div>
+                <div className="brand-text-col">
+                  <span className="brand-text">SchoolSafe</span>
+                  <span className="brand-tagline">ADMIN CONSOLE</span>
+                </div>
+              </div>
+              <div className="nav-cta-group">
+                <button className="btn btn-primary btn-sm" onClick={openLogin}>Sign In</button>
+              </div>
+            </div>
+          </header>
+          <main style={{ flex: 1, padding: '3rem 1rem' }}>
+            <div className="container" style={{ maxWidth: '520px', textAlign: 'center' }}>
+              <div className="panel-card" style={{ padding: '2.5rem' }}>
+                <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#EFF6FF', color: '#2563EB', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+                  <ShieldCheck size={28} />
+                </div>
+                <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.75rem' }}>
+                  Administrator Authentication Required
+                </h2>
+                <p style={{ color: '#64748B', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+                  Access to the SchoolSafe System Administrator console requires authorized administrator credentials. Please sign in with an active administrator account.
+                </p>
+                <button className="btn btn-primary" onClick={openLogin} style={{ width: '100%', justifyContent: 'center' }}>
+                  Sign In as Administrator
+                </button>
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    }
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      navigateTo('LANDING');
+      return null;
+    }
+  }
+
+  // Dedicated Authenticated Dashboard Layout:
+  // STRICT GUARD: Only rendered when user exists AND satisfies ALL required verification checks!
+  if (user && currentView === 'LANDING') {
+    const status = checkUserVerificationStatus(user);
+    if (!status.canAccessDashboard && status.requiredView) {
+      // Re-route unverified user immediately to their required verification onboarding screen
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--color-bg)' }}>
+          <header className="navbar-clean">
+            <div className="container navbar-inner">
+              <div className="brand-link" onClick={openHome} role="button" tabIndex={0}>
+                <div className="brand-logo-wrap">
+                  <img src="/logo-shield.png" alt="SchoolSafe Logo" className="brand-logo-img" />
+                </div>
+                <div className="brand-text-col">
+                  <span className="brand-text">SchoolSafe</span>
+                  <span className="brand-tagline">SMART TRANSIT</span>
+                </div>
+              </div>
+              <div className="nav-cta-group">
+                <button className="btn btn-secondary btn-sm" onClick={logout}>Sign Out</button>
+              </div>
+            </div>
+          </header>
+          <main style={{ flex: 1, padding: '2rem 1rem' }}>
+            <div className="container" style={{ maxWidth: '620px' }}>
+              {status.requiredView === 'VERIFY_EMAIL' ? (
+                <>
+                  <div className="alert alert-warning" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <AlertCircle size={22} style={{ flexShrink: 0, color: '#d97706' }} />
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '1rem', color: '#92400e' }}>Email Verification Required</strong>
+                      <span style={{ fontSize: '0.875rem', color: '#78350f' }}>Please verify your email address to continue using SchoolSafe and access your dashboard.</span>
+                    </div>
+                  </div>
+                  <EmailVerificationView
+                    onSuccess={() => {
+                      refreshUser();
+                      navigateTo('LANDING');
+                    }}
+                    onNavigateToDashboard={() => navigateTo('LANDING')}
+                    onSwitchToLogin={openLogin}
+                  />
+                </>
+              ) : (
+                <>
+                  <div className="alert alert-warning" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <ShieldCheck size={22} style={{ flexShrink: 0, color: '#d97706' }} />
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '1rem', color: '#92400e' }}>Fayda Identity Verification Required</strong>
+                      <span style={{ fontSize: '0.875rem', color: '#78350f' }}>Please complete your Ethiopian National Digital ID verification before accessing the dashboard.</span>
+                    </div>
+                  </div>
+                  <FaydaVerificationView
+                    onSuccess={() => {
+                      refreshUser();
+                      navigateTo('LANDING');
+                    }}
+                    onSkipToDashboard={() => {
+                      // Cannot skip to dashboard without verification!
+                    }}
+                  />
+                </>
+              )}
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--color-bg)' }}>
+        {faydaNotification && (
+          <div className="container" style={{ paddingTop: '1rem', paddingBottom: '0.5rem' }}>
+            <div
+              className={`alert ${
+                faydaNotification.type === 'success' ? 'alert-success' : 'alert-danger'
+              }`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                margin: 0,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {faydaNotification.type === 'success' ? (
+                  <CheckCircle2 size={18} />
+                ) : (
+                  <AlertCircle size={18} />
+                )}
+                <span>{faydaNotification.message}</span>
+              </div>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setFaydaNotification(null)}
+                style={{ padding: '0.2rem 0.5rem' }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+        <DashboardView onOpenVerifyFayda={() => navigateTo('VERIFY_FAYDA')} />
+      </div>
+    );
+  }
+
+
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {/* 3. Header & Navigation Bar */}
+      {/* 3. Streamlined Public Header & Navigation Bar */}
       <header className="navbar-clean">
         <div className="container navbar-inner">
           <div className="brand-link" onClick={openHome} role="button" tabIndex={0}>
@@ -235,19 +442,8 @@ const MainContent: FC = () => {
             </div>
           </div>
 
+          {/* Simplified Navigation: Removed redundant 'Home' and 'How It Works' for direct experience */}
           <nav className="nav-menu">
-            <button
-              className={`nav-link ${currentView === 'LANDING' ? 'active' : ''}`}
-              onClick={openHome}
-            >
-              Home
-            </button>
-            <button
-              className={`nav-link ${currentView === 'HOW_IT_WORKS' ? 'active' : ''}`}
-              onClick={() => navigateTo('HOW_IT_WORKS')}
-            >
-              How It Works
-            </button>
             <button
               className={`nav-link ${currentView === 'SAFETY' ? 'active' : ''}`}
               onClick={() => navigateTo('SAFETY')}
@@ -284,13 +480,20 @@ const MainContent: FC = () => {
             {!user ? (
               <>
                 <button
-                  className={`btn ${currentView === 'LOGIN' ? 'btn-primary' : 'btn-ghost'}`}
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => openRegister('PARENT')}
+                  style={{ color: 'var(--color-primary)', fontWeight: 600 }}
+                >
+                  Find Transportation
+                </button>
+                <button
+                  className={`btn ${currentView === 'LOGIN' ? 'btn-primary' : 'btn-secondary'} btn-sm`}
                   onClick={openLogin}
                 >
                   Sign In
                 </button>
                 <button
-                  className={`btn ${currentView === 'REGISTER' ? 'btn-navy' : 'btn-primary'}`}
+                  className="btn btn-primary btn-sm"
                   onClick={() => openRegister('PARENT')}
                 >
                   Get Started
@@ -299,9 +502,16 @@ const MainContent: FC = () => {
             ) : (
               <button
                 className="btn btn-secondary btn-sm"
-                onClick={() => navigateTo('LANDING')}
+                onClick={() => {
+                  const check = checkUserVerificationStatus(user);
+                  if (check.canAccessDashboard) {
+                    navigateTo('LANDING');
+                  } else if (check.requiredView) {
+                    navigateTo(check.requiredView);
+                  }
+                }}
               >
-                Dashboard
+                {checkUserVerificationStatus(user).canAccessDashboard ? 'Go to Dashboard' : 'Complete Verification'}
               </button>
             )}
           </div>
@@ -341,21 +551,20 @@ const MainContent: FC = () => {
             </div>
           </div>
         )}
-
-        {user && currentView === 'LANDING' ? (
-          <DashboardView onOpenVerifyFayda={() => navigateTo('VERIFY_FAYDA')} />
-        ) : (
           <>
             {currentView === 'LOGIN' && (
               <div className="auth-page">
                 <LoginView
                   onSwitchToRegister={() => openRegister('PARENT')}
                   onSwitchToForgotPassword={() => navigateTo('FORGOT_PASSWORD')}
+                  onSwitchToVerifyEmail={() => navigateTo('VERIFY_EMAIL')}
+                  onSwitchToVerifyFayda={() => navigateTo('VERIFY_FAYDA')}
                   onSuccess={(loggedInUser) => {
-                    if (loggedInUser?.role === 'PARENT' && !loggedInUser?.isVerified) {
-                      navigateTo('VERIFY_FAYDA');
-                    } else {
+                    const status = checkUserVerificationStatus(loggedInUser || user);
+                    if (status.canAccessDashboard) {
                       navigateTo('LANDING');
+                    } else if (status.requiredView) {
+                      navigateTo(status.requiredView);
                     }
                   }}
                 />
@@ -367,12 +576,8 @@ const MainContent: FC = () => {
                 <RegisterView
                   initialRole={selectedInitialRole}
                   onSwitchToLogin={openLogin}
-                  onSuccess={(newUser) => {
-                    if (newUser?.role === 'PARENT' && !newUser?.isVerified) {
-                      navigateTo('VERIFY_FAYDA');
-                    } else {
-                      navigateTo('LANDING');
-                    }
+                  onSuccess={() => {
+                    navigateTo('VERIFY_EMAIL');
                   }}
                 />
               </div>
@@ -382,10 +587,13 @@ const MainContent: FC = () => {
               <div className="auth-page">
                 <FaydaVerificationView
                   onSuccess={() => navigateTo('LANDING')}
-                  onSkipToDashboard={() => navigateTo('LANDING')}
+                  onSkipToDashboard={() => {
+                    // Cannot bypass to dashboard without verification
+                  }}
                 />
               </div>
             )}
+
 
             {currentView === 'VERIFY_EMAIL' && (
               <div className="auth-page">
@@ -769,7 +977,6 @@ const MainContent: FC = () => {
               </div>
             )}
           </>
-        )}
       </main>
 
       {/* 13. Professional Footer */}
