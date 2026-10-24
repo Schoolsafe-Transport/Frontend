@@ -1,6 +1,6 @@
 import { useState, useEffect, FC } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { normalizeToMVPActor, getActorDisplayName, MVPActor } from '../types/auth';
+import { normalizeToMVPActor, getActorDisplayName, MVPActor, UserRole } from '../types/auth';
 import {
   Shield,
   ShieldCheck,
@@ -31,6 +31,7 @@ import {
   Loader2,
   X,
   QrCode,
+  RefreshCw,
 } from 'lucide-react';
 import { PrintableTransportPassModal } from '../components/marketplace/PrintableTransportPassModal';
 import { ParentMarketplaceTabs } from '../components/marketplace/ParentMarketplaceTabs';
@@ -50,11 +51,30 @@ import {
   getMyAgreementsApi,
   getStudentTripStatusApi,
   StudentTripStatusData,
+  getMyPaymentsApi,
+  getPaymentReceiptUrl,
+  PaymentRecord,
+  getVehiclesApi,
+  getProviderRoutesApi,
+  getTransportationRequestsApi,
+  getTripsApi,
+  acceptRequestApi,
+  rejectRequestApi,
+  getMyDocumentsApi,
+  uploadAccountDocumentApi,
+  getAccountDocumentUrl,
+  getAdminStatsApi,
+  AccountDocument,
+  AdminPlatformStats,
+  getAdminSafetyIncidentsApi,
+  resolveAdminIncidentApi,
 } from '../services/api';
 import { AdminApplicationsQueue } from '../components/dashboard/AdminApplicationsQueue';
 import { AdminPaymentsReview } from '../components/dashboard/AdminPaymentsReview';
 import { BusinessCampaignManager } from '../components/dashboard/BusinessCampaignManager';
 import { AdminCampaignManager } from '../components/dashboard/AdminCampaignManager';
+import { AdminAuditLogs } from '../components/dashboard/AdminAuditLogs';
+import { AdminDashboardRoot } from './admin/AdminDashboardRoot';
 
 interface DashboardViewProps {
   onOpenVerifyFayda?: () => void;
@@ -68,31 +88,98 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
 
   if (!user) return null;
 
+  // Dedicated Admin Console: System Administrators receive the redesigned AdminDashboardRoot layout directly
+  if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+    return <AdminDashboardRoot />;
+  }
+
+  const isEmailPending = !user.isEmailVerified;
+  const rolesRequiringFayda: UserRole[] = ['PARENT', 'TRANSPORT_PROVIDER', 'DRIVER'];
+  const isFaydaPending = rolesRequiringFayda.includes(user.role) && !user.isVerified;
+
   const handleResendVerification = async () => {
+    if (!user?.email || resendingEmail) return;
     try {
       setResendingEmail(true);
       setResendNotice(null);
       const res = await resendVerificationEmailApi(user.email);
-      if (res.delivered === false || res.success === false) {
+      if (res.delivered) {
         setResendNotice({
-          type: 'error',
-          text: res.message || 'Could not deliver verification email. Outbound SMTP delivery failed.',
+          type: 'success',
+          text: 'A fresh verification link has been dispatched to your email address.',
         });
       } else {
         setResendNotice({
-          type: 'success',
-          text: res.message || 'A fresh email verification link has been dispatched to your inbox.',
+          type: 'error',
+          text: res.message || 'SMTP delivery could not be performed. Please verify mail configuration.',
         });
       }
     } catch (err: any) {
       setResendNotice({
         type: 'error',
-        text: err.response?.data?.message || 'Could not send verification email. Please wait a moment and try again.',
+        text: err.response?.data?.message || err.message || 'Failed to resend verification link.',
       });
     } finally {
       setResendingEmail(false);
     }
   };
+
+  if (isEmailPending || isFaydaPending) {
+    return (
+      <div className="dashboard-layout" style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
+        <div style={{ maxWidth: '560px', width: '100%', background: '#FFFFFF', borderRadius: '16px', padding: '2.5rem', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#FEF3C7', color: '#D97706', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem' }}>
+            {isEmailPending ? <AlertCircle size={32} /> : <ShieldCheck size={32} />}
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: '0.75rem' }}>
+            {isEmailPending ? 'Email Verification Required' : 'Fayda Identity Verification Required'}
+          </h2>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.925rem', lineHeight: 1.6, marginBottom: '1.75rem' }}>
+            {isEmailPending
+              ? 'Please verify your email address to continue using SchoolSafe. Normal dashboard access and child transit features remain restricted until email verification is complete.'
+              : 'Safeguarding policies require verified national digital identity before accessing transportation services, booking seats, or managing school routes.'}
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {isEmailPending ? (
+              <button
+                className="btn btn-primary"
+                onClick={handleResendVerification}
+                disabled={resendingEmail}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                {resendingEmail ? <Loader2 size={18} className="spin" /> : <RefreshCw size={18} />}
+                <span>{resendingEmail ? 'Sending...' : 'Resend Verification Link'}</span>
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary"
+                onClick={() => (onOpenVerifyFayda ? onOpenVerifyFayda() : setShowFaydaModal(true))}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                <ShieldCheck size={18} />
+                <span>Verify with Fayda National ID</span>
+              </button>
+            )}
+            <button className="btn btn-secondary" onClick={logout} style={{ width: '100%', justifyContent: 'center' }}>
+              <LogOut size={16} />
+              <span>Sign Out</span>
+            </button>
+          </div>
+
+          {resendNotice && (
+            <div
+              className={`alert ${resendNotice.type === 'success' ? 'alert-success' : 'alert-danger'}`}
+              style={{ marginTop: '1.25rem', fontSize: '0.875rem' }}
+            >
+              {resendNotice.text}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
 
   const actorType: MVPActor = normalizeToMVPActor(user.role);
   const actorDisplayName = getActorDisplayName(user.role);
@@ -363,6 +450,8 @@ const ParentDashboardView: FC<{
   const [students, setStudents] = useState<any[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(true);
   const [agreements, setAgreements] = useState<any[]>([]);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [tripStatuses, setTripStatuses] = useState<Record<string, StudentTripStatusData>>({});
   const [passModalAgreementId, setPassModalAgreementId] = useState<string | null>(null);
   const [passModalStudentName, setPassModalStudentName] = useState<string | undefined>(undefined);
@@ -390,11 +479,20 @@ const ParentDashboardView: FC<{
       const data = await getStudentsApi();
       setStudents(data || []);
 
-      // Fetch active agreements and student trip statuses
+      // Fetch active agreements, payments and student trip statuses
       try {
         const agrs = await getMyAgreementsApi();
         setAgreements(agrs || []);
       } catch {}
+
+      try {
+        setPaymentsLoading(true);
+        const pmts = await getMyPaymentsApi();
+        setPayments(pmts || []);
+      } catch {
+      } finally {
+        setPaymentsLoading(false);
+      }
 
       if (data && data.length > 0) {
         const statuses: Record<string, StudentTripStatusData> = {};
@@ -607,19 +705,27 @@ const ParentDashboardView: FC<{
                   <span>Next Pickup / Drop</span>
                   <Clock size={18} style={{ color: 'var(--color-warning)' }} />
                 </div>
-                <div className="stat-value">07:45 AM</div>
-                <div className="stat-subtext">Estimated drop-off at school (On Time)</div>
+                <div className="stat-value">
+                  {agreements.length > 0 && agreements[0]?.route?.departureTimeMorning
+                    ? agreements[0].route.departureTimeMorning
+                    : 'None Scheduled'}
+                </div>
+                <div className="stat-subtext">
+                  {agreements.length > 0 ? 'Assigned morning departure' : 'No active route booked'}
+                </div>
               </div>
 
               <div className="stat-card">
                 <div className="stat-header">
-                  <span>Monthly Payment</span>
+                  <span>Payment History</span>
                   <CreditCard size={18} style={{ color: 'var(--color-primary)' }} />
                 </div>
                 <div className="stat-value" style={{ color: 'var(--color-success)' }}>
-                  Current
+                  {payments.length > 0 ? `${payments.length} Records` : 'Up to date'}
                 </div>
-                <div className="stat-subtext">Next billing cycle: Nov 1, 2026</div>
+                <div className="stat-subtext">
+                  {payments.length > 0 ? 'Verified transactions recorded' : 'No invoices due'}
+                </div>
               </div>
             </div>
 
@@ -1037,45 +1143,123 @@ const ParentDashboardView: FC<{
         {activeTab === 'Payments' && (
           <div className="panel-card">
             <div className="panel-header">
-              <h3 className="panel-title">Payment & Transportation Fees</h3>
-              <button className="btn btn-secondary btn-sm">Download Statements</button>
-            </div>
-            <div style={{ marginBottom: '1.5rem', padding: '1.25rem', backgroundColor: '#F8FAFC', borderRadius: '8px' }}>
-              <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>Current Billing Cycle:</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-primary)', margin: '0.25rem 0' }}>$150.00 / Month</div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--color-success)', fontWeight: 600 }}>
-                {students.length > 0
-                  ? `Active Account • ${students.length} Child${students.length > 1 ? 'ren' : ''} (${students.map((s) => s.firstName).join(' & ')})`
-                  : 'No registered children'}
+              <div>
+                <h3 className="panel-title">Payment & Transportation Ledger</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+                  Real transaction history, verified receipts, and monthly billing statements
+                </p>
               </div>
             </div>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Invoice #</th>
-                  <th>Month</th>
-                  <th>Amount</th>
-                  <th>Date Paid</th>
-                  <th>Receipt</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>INV-2026-10</td>
-                  <td>October 2026</td>
-                  <td>$150.00</td>
-                  <td>Oct 01, 2026</td>
-                  <td><span style={{ color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 600 }}>View PDF</span></td>
-                </tr>
-                <tr>
-                  <td>INV-2026-09</td>
-                  <td>September 2026</td>
-                  <td>$150.00</td>
-                  <td>Sep 01, 2026</td>
-                  <td><span style={{ color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 600 }}>View PDF</span></td>
-                </tr>
-              </tbody>
-            </table>
+
+            {paymentsLoading ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-secondary)' }}>
+                <Loader2 size={28} className="spin-animation" style={{ margin: '0 auto 0.5rem' }} />
+                <div>Loading payment statements...</div>
+              </div>
+            ) : payments.length === 0 ? (
+              <div className="empty-state-card" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+                <div
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '50%',
+                    backgroundColor: '#EFF6FF',
+                    color: 'var(--color-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 1.25rem',
+                  }}
+                >
+                  <CreditCard size={28} />
+                </div>
+                <h4 style={{ color: 'var(--color-primary)', marginBottom: '0.5rem', fontWeight: 700 }}>
+                  No Payment Records Yet
+                </h4>
+                <p style={{ maxWidth: '440px', margin: '0 auto 1.5rem', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
+                  When your student transportation requests are accepted and billed, payment statements and verified receipts will appear here.
+                </p>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setActiveTab('Find Transportation')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', margin: '0 auto' }}
+                >
+                  <Search size={14} /> Find Transportation Routes
+                </button>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Reference #</th>
+                      <th>Transit Details</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th>Date</th>
+                      <th>Receipt</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments.map((p) => (
+                      <tr key={p.id}>
+                        <td>
+                          <strong>{p.reference || p.id.slice(0, 8).toUpperCase()}</strong>
+                        </td>
+                        <td>
+                          <div style={{ fontSize: '0.85rem' }}>
+                            {p.student ? `${p.student.firstName} ${p.student.lastName}` : 'Student Transit'}
+                            {p.route ? ` • ${p.route.name}` : ''}
+                          </div>
+                        </td>
+                        <td>
+                          <strong style={{ color: 'var(--color-primary)' }}>
+                            {p.amount} {p.currency || 'ETB'}
+                          </strong>
+                        </td>
+                        <td>
+                          <span
+                            className={`badge-status ${
+                              p.status === 'APPROVED' || p.status === 'PAID'
+                                ? 'active'
+                                : p.status === 'PENDING_REVIEW'
+                                ? 'pending'
+                                : 'cancelled'
+                            }`}
+                          >
+                            {p.status}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                            {new Date(p.createdAt).toLocaleDateString()}
+                          </div>
+                        </td>
+                        <td>
+                          {p.receiptUrl ? (
+                            <a
+                              href={getPaymentReceiptUrl(p.id)}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                color: 'var(--color-accent)',
+                                fontWeight: 600,
+                                fontSize: '0.85rem',
+                                textDecoration: 'underline',
+                              }}
+                            >
+                              View Receipt
+                            </a>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>None</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -1360,6 +1544,110 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
     'Dashboard' | 'Fleet' | 'Routes' | 'Requests' | 'Passengers' | 'Trips' | 'Notifications' | 'Earnings' | 'Verification' | 'Profile'
   >('Dashboard');
 
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [routes, setRoutes] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [trips, setTrips] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<AccountDocument[]>([]);
+  const [, setLoading] = useState<boolean>(true);
+
+  // Request actions state
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // Document upload state
+  const [selectedDocType, setSelectedDocType] = useState<string>('DRIVER_LICENSE');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState<boolean>(false);
+  const [uploadMessage, setUploadMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const loadProviderData = async () => {
+    try {
+      setLoading(true);
+      const [vRes, rRes, reqRes, tRes, docRes] = await Promise.allSettled([
+        getVehiclesApi(),
+        getProviderRoutesApi(),
+        getTransportationRequestsApi(),
+        getTripsApi(),
+        getMyDocumentsApi(),
+      ]);
+
+      if (vRes.status === 'fulfilled') setVehicles(vRes.value.vehicles || []);
+      if (rRes.status === 'fulfilled') setRoutes(rRes.value.routes || []);
+      if (reqRes.status === 'fulfilled') setRequests(reqRes.value.requests || []);
+      if (tRes.status === 'fulfilled') setTrips(tRes.value.trips || []);
+      if (docRes.status === 'fulfilled') setDocuments(docRes.value || []);
+    } catch (err) {
+      console.error('[ProviderDashboard] Error loading data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProviderData();
+  }, []);
+
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      setActionLoadingId(requestId);
+      await acceptRequestApi(requestId);
+      const res = await getTransportationRequestsApi();
+      setRequests(res.requests || []);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to accept seat request.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    const reason = prompt('Please enter a reason for declining this request (optional):');
+    try {
+      setActionLoadingId(requestId);
+      await rejectRequestApi(requestId, reason || undefined);
+      const res = await getTransportationRequestsApi();
+      setRequests(res.requests || []);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to decline seat request.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docFile) {
+      setUploadMessage({ type: 'error', text: 'Please select a document file to upload.' });
+      return;
+    }
+
+    try {
+      setUploadingDoc(true);
+      setUploadMessage(null);
+      const formData = new FormData();
+      formData.append('documentType', selectedDocType);
+      formData.append('document', docFile);
+
+      await uploadAccountDocumentApi(formData);
+      setUploadMessage({ type: 'success', text: 'Document uploaded successfully and queued for administrator review.' });
+      setDocFile(null);
+      const fileInput = document.getElementById('provider-doc-file-input') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+
+      const docsRes = await getMyDocumentsApi();
+      setDocuments(docsRes || []);
+    } catch (err: any) {
+      setUploadMessage({ type: 'error', text: err.response?.data?.message || 'Failed to upload document.' });
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const pendingRequests = requests.filter((r) => r.status === 'PENDING');
+  const activeRoutes = routes.filter((r) => r.status === 'ACTIVE' || r.isActive);
+  const activeSeats = requests.filter((r) => r.status === 'ACCEPTED' || r.status === 'APPROVED');
+  const totalMonthlyEarnings = activeSeats.reduce((acc, curr) => acc + (curr.route?.monthlyPrice || 0), 0);
+
   const tabs: Array<'Dashboard' | 'Fleet' | 'Routes' | 'Requests' | 'Passengers' | 'Trips' | 'Notifications' | 'Earnings' | 'Verification' | 'Profile'> = [
     'Dashboard',
     'Fleet',
@@ -1375,7 +1663,7 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
 
   return (
     <div>
-      {/* 16. Transport Provider / Driver Navigation */}
+      {/* Provider Role-Based Navigation */}
       <div className="dashboard-nav-strip" style={{ backgroundColor: '#FFFFFF' }}>
         <div className="dashboard-nav-inner">
           <div className="dashboard-tabs">
@@ -1396,6 +1684,11 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
                 {tab === 'Verification' && <FileCheck size={16} />}
                 {tab === 'Profile' && <UserCheck size={16} />}
                 {tab}
+                {tab === 'Requests' && pendingRequests.length > 0 && (
+                  <span style={{ marginLeft: '4px', padding: '2px 6px', borderRadius: '10px', fontSize: '0.75rem', backgroundColor: 'var(--color-danger)', color: '#fff' }}>
+                    {pendingRequests.length}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -1403,15 +1696,43 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
       </div>
 
       <div className="dashboard-main">
-        {/* Overview Stats (Requirements: Fleet: 2 Vehicles, Routes: 4, Requests: 6 Pending, Today's Trips: 3) */}
+        {/* Verification & Approval Notice */}
+        {user.status !== 'ACTIVE' && (
+          <div style={{
+            padding: '1rem 1.25rem',
+            backgroundColor: '#FFFBEB',
+            border: '1px solid #FCD34D',
+            borderRadius: '8px',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.85rem'
+          }}>
+            <AlertTriangle size={20} style={{ color: '#D97706', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 600, color: '#92400E' }}>
+                Account Status: {user.status === 'PENDING' ? 'Pending Administrator Review' : user.status}
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#B45309', marginTop: '0.2rem' }}>
+                Your provider application and documents are being reviewed. Route publication and passenger boarding activation will be enabled once your account is approved.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Real Overview Stats */}
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-header">
               <span>Fleet</span>
               <Car size={18} style={{ color: 'var(--color-primary)' }} />
             </div>
-            <div className="stat-value">2 Vehicles</div>
-            <div className="stat-subtext">Toyota HiAce & Toyota Coaster</div>
+            <div className="stat-value">{vehicles.length} Vehicles</div>
+            <div className="stat-subtext">
+              {vehicles.length > 0
+                ? vehicles.map((v) => `${v.make} ${v.model}`).slice(0, 2).join(', ')
+                : 'No vehicles registered yet'}
+            </div>
           </div>
 
           <div className="stat-card">
@@ -1419,8 +1740,8 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
               <span>Routes</span>
               <MapPin size={18} style={{ color: 'var(--color-accent)' }} />
             </div>
-            <div className="stat-value">4 Active</div>
-            <div className="stat-subtext">Covering 3 School Districts</div>
+            <div className="stat-value">{activeRoutes.length} Active</div>
+            <div className="stat-subtext">{routes.length} total configured routes</div>
           </div>
 
           <div className="stat-card">
@@ -1428,7 +1749,7 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
               <span>Transportation Requests</span>
               <Users size={18} style={{ color: 'var(--color-warning)' }} />
             </div>
-            <div className="stat-value">6 Pending</div>
+            <div className="stat-value">{pendingRequests.length} Pending</div>
             <div className="stat-subtext">Parents awaiting seat approval</div>
           </div>
 
@@ -1437,14 +1758,14 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
               <span>Today's Trips</span>
               <Bus size={18} style={{ color: 'var(--color-success)' }} />
             </div>
-            <div className="stat-value">3 Trips</div>
-            <div className="stat-subtext">Morning Run, Midday, Afternoon Return</div>
+            <div className="stat-value">{trips.length} Trips</div>
+            <div className="stat-subtext">Scheduled dispatch runs</div>
           </div>
         </div>
 
         {activeTab === 'Dashboard' && (
           <>
-            {/* Today's Trips Manifest */}
+            {/* Today's Transit Manifest */}
             <div className="panel-card">
               <div className="panel-header">
                 <div>
@@ -1453,100 +1774,101 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
                     Active schedule for driver & vehicle assignments
                   </p>
                 </div>
-                <button className="btn btn-primary btn-sm">
-                  Start New Trip
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setActiveTab('Trips')}
+                >
+                  Manage Trips
                 </button>
               </div>
 
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Trip Name</th>
-                    <th>Route</th>
-                    <th>Vehicle</th>
-                    <th>Scheduled Time</th>
-                    <th>Passengers</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>Morning Run #01</strong></td>
-                    <td>Bole ➔ Cambridge Academy</td>
-                    <td>Toyota HiAce (3-A2849)</td>
-                    <td>07:00 AM - 07:50 AM</td>
-                    <td>18 / 18 Checked In</td>
-                    <td><span className="badge-status active">In Transit</span></td>
-                  </tr>
-                  <tr>
-                    <td><strong>Morning Run #02</strong></td>
-                    <td>Kazanchis ➔ Sandford International</td>
-                    <td>Toyota Coaster (3-B9912)</td>
-                    <td>07:15 AM - 08:05 AM</td>
-                    <td>24 / 26 Boarded</td>
-                    <td><span className="badge-status active">In Transit</span></td>
-                  </tr>
-                  <tr>
-                    <td><strong>Afternoon Return #01</strong></td>
-                    <td>Cambridge Academy ➔ Bole</td>
-                    <td>Toyota HiAce (3-A2849)</td>
-                    <td>15:30 PM - 16:25 PM</td>
-                    <td>18 Passengers</td>
-                    <td><span className="badge-status pending">Scheduled</span></td>
-                  </tr>
-                </tbody>
-              </table>
+              {trips.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--color-text-secondary)' }}>
+                  <Bus size={36} style={{ margin: '0 auto 0.75rem', color: 'var(--color-border)', display: 'block' }} />
+                  <p style={{ fontWeight: 600, margin: '0 0 0.25rem' }}>No trips currently in progress</p>
+                  <p style={{ fontSize: '0.875rem', margin: 0 }}>Create a new transit dispatch or activate scheduled routes in the Trips tab.</p>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Trip Name</th>
+                      <th>Route</th>
+                      <th>Vehicle</th>
+                      <th>Scheduled Time</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trips.map((trip) => (
+                      <tr key={trip.id}>
+                        <td><strong>{trip.name || `Trip #${trip.id.slice(0, 6)}`}</strong></td>
+                        <td>{trip.route ? `${trip.route.origin} ➔ ${trip.route.destinationSchool}` : 'Configured Route'}</td>
+                        <td>{trip.vehicle ? `${trip.vehicle.make} ${trip.vehicle.model} (${trip.vehicle.plateNumber})` : 'Assigned Vehicle'}</td>
+                        <td>{trip.scheduledDepartureTime || trip.startTime ? new Date(trip.scheduledDepartureTime || trip.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Scheduled'}</td>
+                        <td><span className={`badge-status ${trip.status === 'IN_PROGRESS' ? 'active' : 'pending'}`}>{trip.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
 
             {/* Pending Requests Preview */}
             <div className="panel-card">
               <div className="panel-header">
-                <h3 className="panel-title">Pending Seat Requests (6)</h3>
+                <h3 className="panel-title">Pending Seat Requests ({pendingRequests.length})</h3>
                 <button className="btn btn-ghost btn-sm" onClick={() => setActiveTab('Requests')}>
                   View All Requests
                 </button>
               </div>
 
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Parent Name</th>
-                    <th>Child</th>
-                    <th>School</th>
-                    <th>Requested Route</th>
-                    <th>Pickup Point</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Abebech Tadesse</td>
-                    <td>Samuel Tadesse (Grade 4)</td>
-                    <td>Cambridge Academy</td>
-                    <td>Route #04 (Bole)</td>
-                    <td>Atlas Junction</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-primary btn-sm">Accept</button>
-                        <button className="btn btn-secondary btn-sm">Decline</button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Daniel Mekonnen</td>
-                    <td>Lydia Mekonnen (Grade 6)</td>
-                    <td>Sandford International</td>
-                    <td>Route #12 (Kazanchis)</td>
-                    <td>Bambis Supermarket</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-primary btn-sm">Accept</button>
-                        <button className="btn btn-secondary btn-sm">Decline</button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              {pendingRequests.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--color-text-secondary)' }}>
+                  <Users size={32} style={{ margin: '0 auto 0.5rem', color: 'var(--color-border)', display: 'block' }} />
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>No pending seat requests awaiting review.</p>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Parent Name</th>
+                      <th>Child</th>
+                      <th>Requested Route</th>
+                      <th>Pickup Point</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingRequests.slice(0, 5).map((req) => (
+                      <tr key={req.id}>
+                        <td>{req.parent ? `${req.parent.firstName} ${req.parent.lastName}` : 'Parent Guardian'}</td>
+                        <td>{req.student ? `${req.student.firstName} ${req.student.lastName}` : 'Student'}</td>
+                        <td>{req.route?.name || 'School Route'}</td>
+                        <td>{req.pickupStopName || 'Designated Stop'}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              className="btn btn-primary btn-sm"
+                              disabled={actionLoadingId === req.id}
+                              onClick={() => handleAcceptRequest(req.id)}
+                            >
+                              {actionLoadingId === req.id ? <Loader2 size={14} className="animate-spin" /> : 'Accept'}
+                            </button>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              disabled={actionLoadingId === req.id}
+                              onClick={() => handleRejectRequest(req.id)}
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </>
         )}
@@ -1578,42 +1900,168 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
               <div style={{ padding: '1.25rem', backgroundColor: '#F8FAFC', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Current Month Earnings</div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-primary)' }}>$3,560.00</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Estimated Monthly Volume</div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                  ETB {totalMonthlyEarnings.toLocaleString()}
+                </div>
               </div>
               <div style={{ padding: '1.25rem', backgroundColor: '#F8FAFC', borderRadius: '8px' }}>
                 <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Active Paying Seats</div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-accent)' }}>44 Seats</div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-accent)' }}>
+                  {activeSeats.length} Seats
+                </div>
               </div>
               <div style={{ padding: '1.25rem', backgroundColor: '#F8FAFC', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Payout Status</div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-success)' }}>Cleared</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Payout Account Status</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-success)', marginTop: '0.5rem' }}>
+                  {user.status === 'ACTIVE' ? 'Active / Eligible' : 'Pending Verification'}
+                </div>
               </div>
             </div>
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+              Revenue reflects actual active and accepted student agreements on your registered transportation routes.
+            </p>
           </div>
         )}
 
         {activeTab === 'Verification' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Provider & Driver Verification Records</h3>
-              <span className="badge-status active">Fully Verified Operator</span>
+          <div>
+            <div className="panel-card" style={{ marginBottom: '1.5rem' }}>
+              <div className="panel-header">
+                <div>
+                  <h3 className="panel-title">Provider & Vehicle Documents</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+                    Official documents submitted for administrator review and verification
+                  </p>
+                </div>
+                <span className={`badge-status ${user.status === 'ACTIVE' ? 'active' : 'pending'}`}>
+                  {user.status === 'ACTIVE' ? 'Verified Operator ✓' : 'Under Review'}
+                </span>
+              </div>
+
+              {documents.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--color-text-secondary)' }}>
+                  <FileCheck size={36} style={{ margin: '0 auto 0.75rem', color: 'var(--color-border)', display: 'block' }} />
+                  <p style={{ fontWeight: 600, margin: '0 0 0.25rem' }}>No verification documents uploaded yet</p>
+                  <p style={{ fontSize: '0.875rem', margin: 0 }}>
+                    Upload your driver's license, vehicle registration, and commercial transport permits below to complete verification.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '1rem',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '8px',
+                        backgroundColor: '#FFF'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600 }}>
+                          {doc.documentType.replace(/_/g, ' ')}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '0.2rem' }}>
+                          File: {doc.documentName} • Uploaded {new Date(doc.createdAt).toLocaleDateString()}
+                        </div>
+                        {doc.rejectionReason && (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--color-danger)', marginTop: '0.25rem' }}>
+                            Rejection note: {doc.rejectionReason}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <a
+                          href={getAccountDocumentUrl(doc.id)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-secondary btn-sm"
+                          style={{ textDecoration: 'none' }}
+                        >
+                          View Document
+                        </a>
+                        <span
+                          className={`badge-status ${
+                            doc.status === 'APPROVED' ? 'active' : doc.status === 'REJECTED' ? 'danger' : 'pending'
+                          }`}
+                        >
+                          {doc.status === 'APPROVED' ? 'Approved ✓' : doc.status === 'REJECTED' ? 'Rejected' : 'Pending Review'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>Commercial Driving License (Grade 4)</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Issued by Transport Authority • Verified</div>
-                </div>
-                <span style={{ color: 'var(--color-success)', fontWeight: 600, fontSize: '0.875rem' }}>Approved ✓</span>
+
+            {/* Document Upload Form */}
+            <div className="panel-card">
+              <div className="panel-header">
+                <h3 className="panel-title">Upload New Verification Document</h3>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>Vehicle Roadworthiness Certificate</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Annual mechanical inspection report • Verified</div>
+              <form onSubmit={handleUploadDocument} style={{ maxWidth: '600px' }}>
+                {uploadMessage && (
+                  <div
+                    style={{
+                      padding: '0.75rem 1rem',
+                      borderRadius: '6px',
+                      marginBottom: '1rem',
+                      fontSize: '0.875rem',
+                      backgroundColor: uploadMessage.type === 'success' ? '#ECFDF5' : '#FEF2F2',
+                      color: uploadMessage.type === 'success' ? '#065F46' : '#991B1B',
+                      border: `1px solid ${uploadMessage.type === 'success' ? '#A7F3D0' : '#FECACA'}`
+                    }}
+                  >
+                    {uploadMessage.text}
+                  </div>
+                )}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Document Type
+                  </label>
+                  <select
+                    className="form-control"
+                    value={selectedDocType}
+                    onChange={(e) => setSelectedDocType(e.target.value)}
+                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                  >
+                    <option value="DRIVER_LICENSE">Commercial Driver's License</option>
+                    <option value="VEHICLE_REGISTRATION">Vehicle Registration / Libre</option>
+                    <option value="INSURANCE_CERTIFICATE">Passenger Transit Insurance</option>
+                    <option value="ROADWORTHINESS">Roadworthiness Certificate</option>
+                    <option value="COMMERCIAL_PERMIT">Commercial Transport Permit</option>
+                    <option value="OTHER">Other Supporting Document</option>
+                  </select>
                 </div>
-                <span style={{ color: 'var(--color-success)', fontWeight: 600, fontSize: '0.875rem' }}>Approved ✓</span>
-              </div>
+
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Select File (PDF, PNG, JPG - max 10MB)
+                  </label>
+                  <input
+                    id="provider-doc-file-input"
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    onChange={(e) => setDocFile(e.target.files ? e.target.files[0] : null)}
+                    style={{ display: 'block', width: '100%', fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={uploadingDoc || !docFile}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  {uploadingDoc && <Loader2 size={16} className="animate-spin" />}
+                  {uploadingDoc ? 'Uploading Document...' : 'Submit Document for Review'}
+                </button>
+              </form>
             </div>
           </div>
         )}
@@ -1626,6 +2074,7 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
   );
 };
 
+
 /* =========================================================================
    3. BUSINESS / ADVERTISER DASHBOARD
    Navigation: Dashboard | My Business | Advertisements | Campaigns | Payments | Analytics | Profile
@@ -1634,6 +2083,58 @@ const BusinessDashboardView: FC<{ user: any }> = ({ user }) => {
   const [activeTab, setActiveTab] = useState<
     'Dashboard' | 'My Business' | 'Advertisements' | 'Campaigns' | 'Payments' | 'Analytics' | 'Profile'
   >('Dashboard');
+
+  const [documents, setDocuments] = useState<AccountDocument[]>([]);
+  const [, setLoadingDocs] = useState<boolean>(true);
+  const [selectedDocType, setSelectedDocType] = useState<string>('BUSINESS_REGISTRATION');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState<boolean>(false);
+  const [uploadMessage, setUploadMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const loadDocuments = async () => {
+    try {
+      setLoadingDocs(true);
+      const docs = await getMyDocumentsApi();
+      setDocuments(docs || []);
+    } catch (err) {
+      console.error('[BusinessDashboard] Error loading documents:', err);
+    } finally {
+      setLoadingDocs(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDocuments();
+  }, []);
+
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docFile) {
+      setUploadMessage({ type: 'error', text: 'Please select a document file to upload.' });
+      return;
+    }
+
+    try {
+      setUploadingDoc(true);
+      setUploadMessage(null);
+      const formData = new FormData();
+      formData.append('documentType', selectedDocType);
+      formData.append('document', docFile);
+
+      await uploadAccountDocumentApi(formData);
+      setUploadMessage({ type: 'success', text: 'Document uploaded successfully and queued for administrator review.' });
+      setDocFile(null);
+      const fileInput = document.getElementById('biz-doc-file-input') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+
+      const updated = await getMyDocumentsApi();
+      setDocuments(updated || []);
+    } catch (err: any) {
+      setUploadMessage({ type: 'error', text: err.response?.data?.message || 'Failed to upload document.' });
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
 
   const tabs: Array<'Dashboard' | 'My Business' | 'Advertisements' | 'Campaigns' | 'Payments' | 'Analytics' | 'Profile'> = [
     'Dashboard',
@@ -1647,7 +2148,7 @@ const BusinessDashboardView: FC<{ user: any }> = ({ user }) => {
 
   return (
     <div>
-      {/* 16. Business Role-Based Navigation */}
+      {/* Business Role-Based Navigation */}
       <div className="dashboard-nav-strip" style={{ backgroundColor: '#FFFFFF' }}>
         <div className="dashboard-nav-inner">
           <div className="dashboard-tabs">
@@ -1672,26 +2173,200 @@ const BusinessDashboardView: FC<{ user: any }> = ({ user }) => {
       </div>
 
       <div className="dashboard-main">
+        {/* Verification Alert Banner */}
+        {user.status !== 'ACTIVE' && (
+          <div style={{
+            padding: '1rem 1.25rem',
+            backgroundColor: '#FFFBEB',
+            border: '1px solid #FCD34D',
+            borderRadius: '8px',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.85rem'
+          }}>
+            <AlertTriangle size={20} style={{ color: '#D97706', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 600, color: '#92400E' }}>
+                Business Status: {user.status === 'PENDING' ? 'Pending Administrator Review' : user.status}
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#B45309', marginTop: '0.2rem' }}>
+                Your business credentials and registration documents are under administrative review. Campaigns can be created in draft mode and will become eligible for publication upon approval.
+              </div>
+            </div>
+          </div>
+        )}
+
         {(activeTab === 'Dashboard' || activeTab === 'Advertisements' || activeTab === 'Campaigns' || activeTab === 'Analytics') && (
           <BusinessCampaignManager />
         )}
 
         {activeTab === 'My Business' && (
-          <div className="panel-card">
-            <div className="panel-header">
-              <h3 className="panel-title">Business Profile & Verification</h3>
+          <div>
+            <div className="panel-card" style={{ marginBottom: '1.5rem' }}>
+              <div className="panel-header">
+                <div>
+                  <h3 className="panel-title">Business Profile Details</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+                    Official commercial identity registered with SchoolSafe
+                  </p>
+                </div>
+                <span className={`badge-status ${user.status === 'ACTIVE' ? 'active' : 'pending'}`}>
+                  {user.status === 'ACTIVE' ? 'Approved Partner ✓' : user.status}
+                </span>
+              </div>
+              <div style={{ maxWidth: '650px', display: 'grid', gridTemplateColumns: '180px 1fr', gap: '1rem', fontSize: '0.925rem' }}>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Company / Brand:</span>
+                <span style={{ fontWeight: 600 }}>{user.businessName || 'Not specified'}</span>
+
+                <span style={{ color: 'var(--color-text-secondary)' }}>Tax Number / TIN:</span>
+                <span style={{ fontWeight: 600 }}>{user.licenseNumber || 'Not specified'}</span>
+
+                <span style={{ color: 'var(--color-text-secondary)' }}>Operating Location:</span>
+                <span>{user.serviceArea || 'Not specified'}</span>
+
+                <span style={{ color: 'var(--color-text-secondary)' }}>Contact Person:</span>
+                <span>{user.firstName} {user.lastName}</span>
+
+                <span style={{ color: 'var(--color-text-secondary)' }}>Email:</span>
+                <span>{user.email}</span>
+
+                <span style={{ color: 'var(--color-text-secondary)' }}>Email Verification:</span>
+                <span style={{ color: user.isEmailVerified ? 'var(--color-success)' : 'var(--color-warning)', fontWeight: 600 }}>
+                  {user.isEmailVerified ? 'Verified ✓' : 'Not Verified'}
+                </span>
+              </div>
             </div>
-            <div style={{ maxWidth: '600px', display: 'grid', gridTemplateColumns: '160px 1fr', gap: '1rem', fontSize: '0.925rem' }}>
-              <span style={{ color: 'var(--color-text-secondary)' }}>Account Name:</span>
-              <span style={{ fontWeight: 600 }}>{user.firstName} {user.lastName}</span>
 
-              <span style={{ color: 'var(--color-text-secondary)' }}>Email:</span>
-              <span>{user.email}</span>
+            {/* Business Verification Documents */}
+            <div className="panel-card" style={{ marginBottom: '1.5rem' }}>
+              <div className="panel-header">
+                <div>
+                  <h3 className="panel-title">Submitted Commercial Documents</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+                    Official certificates uploaded for platform verification
+                  </p>
+                </div>
+              </div>
 
-              <span style={{ color: 'var(--color-text-secondary)' }}>Email Verified:</span>
-              <span style={{ color: user.isEmailVerified ? 'var(--color-success)' : 'var(--color-warning)', fontWeight: 600 }}>
-                {user.isEmailVerified ? 'Verified ✓' : 'Not Verified'}
-              </span>
+              {documents.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--color-text-secondary)' }}>
+                  <FileText size={32} style={{ margin: '0 auto 0.5rem', color: 'var(--color-border)', display: 'block' }} />
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>No verification documents uploaded yet.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '1rem',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '8px',
+                        backgroundColor: '#FFF'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600 }}>
+                          {doc.documentType.replace(/_/g, ' ')}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '0.2rem' }}>
+                          File: {doc.documentName} • Uploaded {new Date(doc.createdAt).toLocaleDateString()}
+                        </div>
+                        {doc.rejectionReason && (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--color-danger)', marginTop: '0.25rem' }}>
+                            Rejection reason: {doc.rejectionReason}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <a
+                          href={getAccountDocumentUrl(doc.id)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-secondary btn-sm"
+                          style={{ textDecoration: 'none' }}
+                        >
+                          View Document
+                        </a>
+                        <span
+                          className={`badge-status ${
+                            doc.status === 'APPROVED' ? 'active' : doc.status === 'REJECTED' ? 'danger' : 'pending'
+                          }`}
+                        >
+                          {doc.status === 'APPROVED' ? 'Approved ✓' : doc.status === 'REJECTED' ? 'Rejected' : 'Pending Review'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Document Upload Form */}
+            <div className="panel-card">
+              <div className="panel-header">
+                <h3 className="panel-title">Upload Business Certificate</h3>
+              </div>
+              <form onSubmit={handleUploadDocument} style={{ maxWidth: '600px' }}>
+                {uploadMessage && (
+                  <div
+                    style={{
+                      padding: '0.75rem 1rem',
+                      borderRadius: '6px',
+                      marginBottom: '1rem',
+                      fontSize: '0.875rem',
+                      backgroundColor: uploadMessage.type === 'success' ? '#ECFDF5' : '#FEF2F2',
+                      color: uploadMessage.type === 'success' ? '#065F46' : '#991B1B',
+                      border: `1px solid ${uploadMessage.type === 'success' ? '#A7F3D0' : '#FECACA'}`
+                    }}
+                  >
+                    {uploadMessage.text}
+                  </div>
+                )}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Document Type
+                  </label>
+                  <select
+                    className="form-control"
+                    value={selectedDocType}
+                    onChange={(e) => setSelectedDocType(e.target.value)}
+                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                  >
+                    <option value="BUSINESS_REGISTRATION">Commercial Registration Certificate</option>
+                    <option value="TAX_IDENTIFICATION">TIN Certificate</option>
+                    <option value="TRADE_LICENSE">Business Trade License</option>
+                    <option value="OTHER">Other Authorization Document</option>
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Select File (PDF, PNG, JPG - max 10MB)
+                  </label>
+                  <input
+                    id="biz-doc-file-input"
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    onChange={(e) => setDocFile(e.target.files ? e.target.files[0] : null)}
+                    style={{ display: 'block', width: '100%', fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={uploadingDoc || !docFile}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  {uploadingDoc && <Loader2 size={16} className="animate-spin" />}
+                  {uploadingDoc ? 'Uploading...' : 'Upload Document for Verification'}
+                </button>
+              </form>
             </div>
           </div>
         )}
@@ -1702,7 +2377,7 @@ const BusinessDashboardView: FC<{ user: any }> = ({ user }) => {
               <h3 className="panel-title">Billing & Ad Invoices</h3>
             </div>
             <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-              Advertising payments are currently in development simulation mode. When Telebirr or CBE Birr integration is activated, invoice statements and payment receipt history will appear here.
+              Advertising campaign charges and payment invoices are verified upon campaign submission. Approved campaigns with payment confirmation will display billing statements here.
             </p>
           </div>
         )}
@@ -1721,6 +2396,45 @@ const BusinessDashboardView: FC<{ user: any }> = ({ user }) => {
    ========================================================================= */
 const AdminDashboardView: FC<{ user: any }> = ({ user }) => {
   const [activeTab, setActiveTab] = useState<string>('Dashboard');
+  const [stats, setStats] = useState<AdminPlatformStats | null>(null);
+  const [incidents, setIncidents] = useState<any[]>([]);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+
+  const loadAdminData = async () => {
+    try {
+      setLoadingStats(true);
+      const [sRes, iRes] = await Promise.allSettled([
+        getAdminStatsApi(),
+        getAdminSafetyIncidentsApi(),
+      ]);
+      if (sRes.status === 'fulfilled') setStats(sRes.value);
+      if (iRes.status === 'fulfilled') setIncidents(iRes.value || []);
+    } catch (err) {
+      console.error('[AdminDashboard] Error loading data:', err);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAdminData();
+  }, []);
+
+  const handleResolveIncident = async (incidentId: string) => {
+    const notes = prompt('Enter resolution notes for this safety incident:');
+    if (!notes) return;
+    try {
+      setResolvingId(incidentId);
+      await resolveAdminIncidentApi(incidentId, notes);
+      const updated = await getAdminSafetyIncidentsApi();
+      setIncidents(updated || []);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to resolve incident.');
+    } finally {
+      setResolvingId(null);
+    }
+  };
 
   const tabs = [
     'Dashboard',
@@ -1737,9 +2451,18 @@ const AdminDashboardView: FC<{ user: any }> = ({ user }) => {
     'Settings',
   ];
 
+  const totalUsers = stats?.users.total ?? 0;
+  const verifiedProviders = (stats?.users.byRole?.['TRANSPORT_PROVIDER'] ?? 0) + (stats?.users.byRole?.['DRIVER'] ?? 0);
+  const totalVehicles = stats?.transportation.totalVehicles ?? 0;
+  const activeRoutes = stats?.transportation.activeRoutes ?? 0;
+  const activeTrips = stats?.transportation.activeTrips ?? 0;
+  const openIncidents = (stats?.safety.incidents?.['OPEN'] ?? 0) + (stats?.safety.incidents?.['INVESTIGATING'] ?? 0);
+  const activeAds = stats?.advertising.activeCampaigns ?? 0;
+  const paidVolume = stats?.financials.totalPaidVolumeETB ?? 0;
+
   return (
     <div>
-      {/* 16. System Administrator Navigation */}
+      {/* System Administrator Navigation */}
       <div className="dashboard-nav-strip" style={{ backgroundColor: '#FFFFFF' }}>
         <div className="dashboard-nav-inner">
           <div className="dashboard-tabs">
@@ -1772,42 +2495,43 @@ const AdminDashboardView: FC<{ user: any }> = ({ user }) => {
         <div style={{ marginBottom: '1.25rem', fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
           Active System Administrator: <strong>{user.firstName} {user.lastName}</strong> ({user.email})
         </div>
-        {/* Overview Stats (Requirements: Total Users: 1,280; Verified Providers: 84; Active Vehicles: 112; Active Trips: 38; Open Incidents: 2; Advertising Revenue: $8,450; Pending Verifications: 5) */}
+
+        {/* Real Overview Stats from Database */}
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-header">
               <span>Total Users</span>
               <Users size={18} style={{ color: 'var(--color-primary)' }} />
             </div>
-            <div className="stat-value">1,280</div>
+            <div className="stat-value">{loadingStats ? '...' : totalUsers}</div>
             <div className="stat-subtext">Parents, Providers & Advertisers</div>
           </div>
 
           <div className="stat-card">
             <div className="stat-header">
-              <span>Verified Providers</span>
+              <span>Transport Providers</span>
               <ShieldCheck size={18} style={{ color: 'var(--color-success)' }} />
             </div>
-            <div className="stat-value">84</div>
-            <div className="stat-subtext">5 Pending Document Review</div>
+            <div className="stat-value">{loadingStats ? '...' : verifiedProviders}</div>
+            <div className="stat-subtext">Registered transit operators</div>
           </div>
 
           <div className="stat-card">
             <div className="stat-header">
-              <span>Active Vehicles</span>
+              <span>Platform Vehicles</span>
               <Car size={18} style={{ color: 'var(--color-accent)' }} />
             </div>
-            <div className="stat-value">112</div>
-            <div className="stat-subtext">Inspected & cleared for student transit</div>
+            <div className="stat-value">{loadingStats ? '...' : totalVehicles}</div>
+            <div className="stat-subtext">{activeRoutes} active school transit routes</div>
           </div>
 
           <div className="stat-card">
             <div className="stat-header">
-              <span>Active Trips</span>
+              <span>Live Dispatches</span>
               <Bus size={18} style={{ color: 'var(--color-accent)' }} />
             </div>
-            <div className="stat-value">38</div>
-            <div className="stat-subtext">Live morning transportation routes</div>
+            <div className="stat-value">{loadingStats ? '...' : activeTrips}</div>
+            <div className="stat-subtext">Active transit trips</div>
           </div>
         </div>
 
@@ -1815,37 +2539,39 @@ const AdminDashboardView: FC<{ user: any }> = ({ user }) => {
           <div className="stat-card">
             <div className="stat-header">
               <span>Open Incidents</span>
-              <AlertTriangle size={18} style={{ color: 'var(--color-danger)' }} />
+              <AlertTriangle size={18} style={{ color: openIncidents > 0 ? 'var(--color-danger)' : 'var(--color-success)' }} />
             </div>
-            <div className="stat-value" style={{ color: 'var(--color-danger)' }}>2</div>
+            <div className="stat-value" style={{ color: openIncidents > 0 ? 'var(--color-danger)' : 'inherit' }}>
+              {loadingStats ? '...' : openIncidents}
+            </div>
             <div className="stat-subtext">Safety alerts requiring review</div>
           </div>
 
           <div className="stat-card">
             <div className="stat-header">
-              <span>Advertising Revenue</span>
+              <span>Total Paid Volume</span>
               <DollarSign size={18} style={{ color: 'var(--color-success)' }} />
             </div>
-            <div className="stat-value">$8,450</div>
-            <div className="stat-subtext">Current month platform ad fees</div>
+            <div className="stat-value">{loadingStats ? '...' : `ETB ${paidVolume.toLocaleString()}`}</div>
+            <div className="stat-subtext">Verified platform collections</div>
           </div>
 
           <div className="stat-card">
             <div className="stat-header">
-              <span>Pending Verifications</span>
+              <span>Active Ad Campaigns</span>
               <FileCheck size={18} style={{ color: 'var(--color-warning)' }} />
             </div>
-            <div className="stat-value">5</div>
-            <div className="stat-subtext">Driver licenses & vehicle checks</div>
+            <div className="stat-value">{loadingStats ? '...' : activeAds}</div>
+            <div className="stat-subtext">Approved public advertisements</div>
           </div>
 
           <div className="stat-card">
             <div className="stat-header">
-              <span>System Security</span>
+              <span>Security & Audit</span>
               <Shield size={18} style={{ color: 'var(--color-primary)' }} />
             </div>
-            <div className="stat-value" style={{ color: 'var(--color-success)', fontSize: '1.25rem' }}>Protected</div>
-            <div className="stat-subtext">RBAC, token rotation & SSL active</div>
+            <div className="stat-value" style={{ color: 'var(--color-success)', fontSize: '1.25rem' }}>Active</div>
+            <div className="stat-subtext">RBAC, token hashes & audit logging</div>
           </div>
         </div>
 
@@ -1864,50 +2590,68 @@ const AdminDashboardView: FC<{ user: any }> = ({ user }) => {
           <AdminCampaignManager />
         )}
 
-        {/* Open Safety Incidents */}
-        <div className="panel-card">
-          <div className="panel-header">
-            <div>
-              <h3 className="panel-title" style={{ color: 'var(--color-danger)' }}>
-                Open Safety Incidents (2)
-              </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: 0 }}>
-                Immediate safety events logged by drivers, schools, or parents
-              </p>
-            </div>
-          </div>
+        {/* Real Administrative Audit Logs */}
+        {activeTab === 'Audit Logs' && (
+          <AdminAuditLogs />
+        )}
 
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Incident ID</th>
-                <th>Route</th>
-                <th>Report Type</th>
-                <th>Details</th>
-                <th>Reported At</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>#INC-1082</strong></td>
-                <td>Route #04 (Bole)</td>
-                <td><span className="badge-status pending">Traffic Detour</span></td>
-                <td>Minor road construction detour causing 10-minute delay. Parents notified automatically.</td>
-                <td>07:22 AM</td>
-                <td><button className="btn btn-secondary btn-sm">Resolve</button></td>
-              </tr>
-              <tr>
-                <td><strong>#INC-1079</strong></td>
-                <td>Route #09 (Sarbet)</td>
-                <td><span className="badge-status pending">Unscheduled Stop</span></td>
-                <td>Vehicle paused for tire pressure check. Re-engaged safely.</td>
-                <td>Yesterday</td>
-                <td><button className="btn btn-secondary btn-sm">Resolve</button></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        {/* Open Safety Incidents */}
+        {(activeTab === 'Dashboard' || activeTab === 'Incidents') && (
+          <div className="panel-card">
+            <div className="panel-header">
+              <div>
+                <h3 className="panel-title" style={{ color: 'var(--color-danger)' }}>
+                  Platform Safety Incidents ({incidents.length})
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+                  Immediate safety events logged by drivers, schools, or parents
+                </p>
+              </div>
+            </div>
+
+            {incidents.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--color-text-secondary)' }}>
+                <CheckCircle2 size={32} style={{ margin: '0 auto 0.5rem', color: 'var(--color-success)', display: 'block' }} />
+                <p style={{ margin: 0, fontSize: '0.9rem' }}>No open safety incidents on record. All routes operational.</p>
+              </div>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Incident ID</th>
+                    <th>Report Type</th>
+                    <th>Details</th>
+                    <th>Status</th>
+                    <th>Reported At</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {incidents.map((inc) => (
+                    <tr key={inc.id}>
+                      <td><strong>#{inc.id.slice(0, 8)}</strong></td>
+                      <td><span className="badge-status pending">{inc.incidentType || 'Safety Alert'}</span></td>
+                      <td>{inc.description}</td>
+                      <td><span className={`badge-status ${inc.status === 'RESOLVED' ? 'active' : 'pending'}`}>{inc.status}</span></td>
+                      <td>{new Date(inc.createdAt).toLocaleString()}</td>
+                      <td>
+                        {inc.status !== 'RESOLVED' && (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            disabled={resolvingId === inc.id}
+                            onClick={() => handleResolveIncident(inc.id)}
+                          >
+                            {resolvingId === inc.id ? <Loader2 size={12} className="animate-spin" /> : 'Resolve'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
