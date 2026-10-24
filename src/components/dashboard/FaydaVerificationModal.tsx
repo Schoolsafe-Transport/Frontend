@@ -65,6 +65,9 @@ export const FaydaVerificationModal: FC<FaydaModalProps> = ({ isOpen, onClose, o
       if (res.success) {
         setTransactionId(res.data.transactionId);
         setMaskedPhone(res.data.maskedPhone || '+251 9*** ***01');
+        if (res.data.simulatedOtp) {
+          setOtp(res.data.simulatedOtp);
+        }
         setStep(2);
       }
     } catch (err: any) {
