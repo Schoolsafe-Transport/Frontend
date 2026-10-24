@@ -50,12 +50,18 @@ export const EmailVerificationView: FC<EmailVerificationViewProps> = ({
         const res = await verifyEmailApi(token);
         if (!isMounted) return;
 
+        if ((res as any).tokens?.accessToken) {
+          localStorage.setItem('schoolsafe_access_token', (res as any).tokens.accessToken);
+          localStorage.setItem('schoolsafe_refresh_token', (res as any).tokens.refreshToken);
+        }
+
         setStatus('success');
         setMessage(res.message || 'Your email address has been successfully verified.');
         await refreshUser();
         if (onSuccess) {
           onSuccess();
         }
+
       } catch (err: any) {
         if (!isMounted) return;
         setStatus('error');
@@ -107,13 +113,24 @@ export const EmailVerificationView: FC<EmailVerificationViewProps> = ({
     }
   };
 
+  const rolesRequiringFayda = ['PARENT', 'TRANSPORT_PROVIDER', 'DRIVER'];
+  const needsFayda = Boolean(user?.role && rolesRequiringFayda.includes(user.role) && !user.isVerified);
+
   const handleGoDashboard = () => {
-    if (onNavigateToDashboard) {
+    if (needsFayda) {
+      if (onNavigateToDashboard) {
+        window.history.pushState({ view: 'VERIFY_FAYDA' }, '', '/verify-fayda');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      } else {
+        window.location.href = '/verify-fayda';
+      }
+    } else if (onNavigateToDashboard) {
       onNavigateToDashboard();
     } else {
       window.location.href = '/';
     }
   };
+
 
   const handleGoLogin = () => {
     if (onSwitchToLogin) {
@@ -187,9 +204,10 @@ export const EmailVerificationView: FC<EmailVerificationViewProps> = ({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <button className="btn btn-primary" onClick={handleGoDashboard} style={{ width: '100%' }}>
-              <span>Continue to Dashboard</span>
+              <span>{needsFayda ? 'Continue to Fayda ID Verification' : 'Continue to Dashboard'}</span>
               <ArrowRight size={18} />
             </button>
+
             {!user && (
               <button className="btn btn-secondary" onClick={handleGoLogin} style={{ width: '100%' }}>
                 Sign In With Your Account
