@@ -12,8 +12,11 @@ import {
   Clock,
   Gauge,
   Layers,
+  Satellite,
+  AlertCircle,
 } from 'lucide-react';
 import { getSocket } from '../../services/socket';
+import { getLatestTripLocationApi, recordTripLocationApi } from '../../services/api';
 
 interface StopLocation {
   name: string;
@@ -55,6 +58,7 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
   const busMarkerRef = useRef<L.Marker | null>(null);
   const routePolylineRef = useRef<L.Polyline | null>(null);
   const simulationIntervalRef = useRef<any>(null);
+  const watchIdRef = useRef<number | null>(null);
 
   const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number }>({
     lat: stops[0]?.lat || 8.9954,
@@ -64,6 +68,8 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
   const [heading, setHeading] = useState<number>(45);
   const [lastUpdated, setLastUpdated] = useState<string>('Just now');
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
+  const [isDeviceGps, setIsDeviceGps] = useState<boolean>(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
   const [simStepIndex, setSimStepIndex] = useState<number>(0);
 
   // Initialize Map
@@ -182,6 +188,37 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
     };
   }, [stops, vehiclePlate, driverName]);
 
+  // Fetch initial location from PostgreSQL if recorded
+  useEffect(() => {
+    if (!tripId || tripId === 'active-trip') return;
+    let isCancelled = false;
+
+    getLatestTripLocationApi(tripId)
+      .then((data) => {
+        if (!isCancelled && data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          const initialPos = { lat: data.latitude, lng: data.longitude };
+          setCurrentPosition(initialPos);
+          if (data.speed !== undefined && data.speed !== null) setSpeed(data.speed);
+          if (data.heading !== undefined && data.heading !== null) setHeading(data.heading);
+          setLastUpdated(new Date(data.timestamp || Date.now()).toLocaleTimeString());
+
+          if (busMarkerRef.current) {
+            busMarkerRef.current.setLatLng([initialPos.lat, initialPos.lng]);
+          }
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.panTo([initialPos.lat, initialPos.lng]);
+          }
+        }
+      })
+      .catch(() => {
+        // Safe catch if no location logged yet
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [tripId]);
+
   // Subscribe to Live Socket.IO Trip Updates
   useEffect(() => {
     if (!tripId) return;
@@ -202,7 +239,7 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
         heading?: number;
         timestamp?: string;
       }) => {
-        if (data.tripId === tripId && data.latitude && data.longitude) {
+        if (data.tripId === tripId && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
           const newPos = { lat: data.latitude, lng: data.longitude };
           setCurrentPosition(newPos);
           if (data.speed !== undefined) setSpeed(data.speed);
@@ -225,6 +262,94 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
     }
   }, [tripId]);
 
+  // Real Device GPS Broadcast (HTML5 Geolocation API)
+  const toggleDeviceGps = () => {
+    if (isDeviceGps) {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setIsDeviceGps(false);
+      return;
+    }
+
+    if (!('geolocation' in navigator)) {
+      setGpsError('Geolocation is not supported by your current browser.');
+      return;
+    }
+
+    // Stop simulation if active
+    if (isSimulating) {
+      if (simulationIntervalRef.current) {
+        clearInterval(simulationIntervalRef.current);
+        simulationIntervalRef.current = null;
+      }
+      setIsSimulating(false);
+    }
+
+    setGpsError(null);
+    setIsDeviceGps(true);
+
+    const watchId = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude, longitude, speed: geoSpeed, heading: geoHeading } = pos.coords;
+        const currentSpeed = geoSpeed !== null && geoSpeed >= 0 ? Math.round(geoSpeed * 3.6) : 0;
+        const currentHeading = geoHeading !== null && geoHeading >= 0 ? Math.round(geoHeading) : 0;
+
+        setCurrentPosition({ lat: latitude, lng: longitude });
+        setSpeed(currentSpeed);
+        setHeading(currentHeading);
+        setLastUpdated(new Date().toLocaleTimeString());
+
+        if (busMarkerRef.current) {
+          busMarkerRef.current.setLatLng([latitude, longitude]);
+        }
+
+        // 1. Broadcast over Socket.IO for immediate real-time parent tracking
+        try {
+          const socket = getSocket();
+          socket.emit('driver_location', {
+            tripId,
+            latitude,
+            longitude,
+            speed: currentSpeed,
+            heading: currentHeading,
+            isSimulated: false,
+          });
+        } catch (_err) {
+          // Socket error handled
+        }
+
+        // 2. Persist to PostgreSQL database via REST
+        try {
+          await recordTripLocationApi(tripId, {
+            latitude,
+            longitude,
+            speed: currentSpeed,
+            heading: currentHeading,
+          });
+        } catch (_err) {
+          // REST error handled
+        }
+      },
+      (err) => {
+        setGpsError(`Device GPS Note: ${err.message || 'Location access permission required'}`);
+        setIsDeviceGps(false);
+        if (watchIdRef.current !== null) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 3000,
+        timeout: 15000,
+      }
+    );
+
+    watchIdRef.current = watchId;
+  };
+
   // Smooth transit simulation generator for providers or parent demos
   const toggleSimulation = () => {
     if (isSimulating) {
@@ -236,7 +361,17 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
       return;
     }
 
+    // Stop device GPS if active
+    if (isDeviceGps) {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setIsDeviceGps(false);
+    }
+
     setIsSimulating(true);
+    setGpsError(null);
 
     // Build dense interpolation steps along the stops
     const denseWaypoints: { lat: number; lng: number }[] = [];
@@ -284,6 +419,7 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
           longitude: nextCoord.lng,
           speed: simulatedSpeed,
           heading: simulatedHeading,
+          isSimulated: true,
         });
       } catch (_err) {
         // Safe catch
@@ -297,8 +433,13 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
 
   useEffect(() => {
     return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
       if (simulationIntervalRef.current) {
         clearInterval(simulationIntervalRef.current);
+        simulationIntervalRef.current = null;
       }
     };
   }, []);
@@ -329,22 +470,61 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                backgroundColor: '#ECFDF5',
-                color: '#065F46',
-                padding: '0.2rem 0.55rem',
-                borderRadius: '9999px',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-              }}
-            >
-              <Radio size={12} className="animate-pulse" style={{ color: '#10B981' }} />
-              Live Telemetry
-            </span>
+            {isDeviceGps ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  backgroundColor: '#ECFDF5',
+                  color: '#065F46',
+                  padding: '0.2rem 0.55rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  border: '1px solid #A7F3D0',
+                }}
+              >
+                <Satellite size={12} className="animate-pulse" style={{ color: '#059669' }} />
+                Live Satellite GPS Active
+              </span>
+            ) : isSimulating ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  backgroundColor: '#EFF6FF',
+                  color: '#1E40AF',
+                  padding: '0.2rem 0.55rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  border: '1px solid #BFDBFE',
+                }}
+              >
+                <Radio size={12} className="animate-pulse" style={{ color: '#2563EB' }} />
+                Route Simulator Active
+              </span>
+            ) : (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  backgroundColor: '#F1F5F9',
+                  color: '#475569',
+                  padding: '0.2rem 0.55rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                }}
+              >
+                <Radio size={12} style={{ color: '#10B981' }} />
+                Real-Time Telemetry Stream
+              </span>
+            )}
+
             <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-primary)', margin: 0 }}>
               {routeName}
             </h3>
@@ -355,7 +535,7 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
         </div>
 
         {/* Live Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
             onClick={handleRecenter}
             className="btn btn-secondary btn-sm"
@@ -365,24 +545,70 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
             <Navigation size={14} /> Center Bus
           </button>
 
-          {/* Broadcast / Simulation button */}
+          {/* Provider / Driver Device GPS Button */}
+          {isProvider && (
+            <button
+              onClick={toggleDeviceGps}
+              className={`btn btn-sm ${isDeviceGps ? 'btn-danger' : 'btn-primary'}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontSize: '0.8rem',
+                backgroundColor: isDeviceGps ? undefined : '#047857',
+                borderColor: isDeviceGps ? undefined : '#047857',
+              }}
+              title="Broadcast real GPS coordinates from device location"
+            >
+              {isDeviceGps ? (
+                <>
+                  <Square size={14} /> Stop Device GPS
+                </>
+              ) : (
+                <>
+                  <Satellite size={14} /> Broadcast Real GPS
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Route Simulation button */}
           <button
             onClick={toggleSimulation}
-            className={`btn btn-sm ${isSimulating ? 'btn-danger' : 'btn-primary'}`}
+            className={`btn btn-sm ${isSimulating ? 'btn-danger' : 'btn-secondary'}`}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}
+            title={isProvider ? 'Simulate route movement for demonstrations' : 'Simulate live transit run'}
           >
             {isSimulating ? (
               <>
-                <Square size={14} /> Stop GPS Broadcast
+                <Square size={14} /> Stop Simulation
               </>
             ) : (
               <>
-                <Play size={14} /> {isProvider ? 'Start GPS Broadcast' : 'Simulate Live Journey'}
+                <Play size={14} /> {isProvider ? 'Simulate Route' : 'Simulate Journey'}
               </>
             )}
           </button>
         </div>
       </div>
+
+      {gpsError && (
+        <div
+          style={{
+            padding: '0.6rem 1rem',
+            backgroundColor: '#FEF2F2',
+            color: '#B91C1C',
+            fontSize: '0.8rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            borderBottom: '1px solid #FCA5A5',
+          }}
+        >
+          <AlertCircle size={15} style={{ flexShrink: 0 }} />
+          <span>{gpsError}</span>
+        </div>
+      )}
 
       {/* Map Canvas Container */}
       <div style={{ position: 'relative', width: '100%', height: '420px', backgroundColor: '#E2E8F0' }}>
