@@ -2,6 +2,8 @@ import { useState, useEffect, FC, FormEvent } from 'react';
 import {
   getAdminApplicationsApi,
   reviewAdminApplicationApi,
+  reviewAccountDocumentApi,
+  getAccountDocumentUrl,
   AdminApplication,
 } from '../../services/api';
 import {
@@ -12,6 +14,7 @@ import {
   Search,
   Loader2,
   XCircle,
+  FileText,
 } from 'lucide-react';
 
 export const AdminApplicationsQueue: FC = () => {
@@ -74,6 +77,20 @@ export const AdminApplicationsQueue: FC = () => {
       await loadApplications();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to suspend account.');
+    } finally {
+      setSubmittingDecision(false);
+    }
+  };
+
+  const handleReviewDocument = async (docId: string, decision: 'APPROVE' | 'REJECT', reason?: string) => {
+    try {
+      setSubmittingDecision(true);
+      setError(null);
+      await reviewAccountDocumentApi(docId, { decision, rejectionReason: reason });
+      setSuccessNotice(`Document status updated to ${decision}.`);
+      await loadApplications();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to update document status.');
     } finally {
       setSubmittingDecision(false);
     }
@@ -260,6 +277,21 @@ export const AdminApplicationsQueue: FC = () => {
                       </strong>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{app.email}</div>
                       {app.phone && <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{app.phone}</div>}
+                      {app.businessName && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 600, marginTop: '0.15rem' }}>
+                          🏢 {app.businessName}
+                        </div>
+                      )}
+                      {app.licenseNumber && (
+                        <div style={{ fontSize: '0.72rem', color: '#475569' }}>
+                          Lic: {app.licenseNumber}
+                        </div>
+                      )}
+                      {app.serviceArea && (
+                        <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                          Area: {app.serviceArea}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td>
@@ -326,23 +358,95 @@ export const AdminApplicationsQueue: FC = () => {
                     )}
                   </td>
                   <td>
-                    {app.vehicles && app.vehicles.length > 0 ? (
-                      <div>
+                    {/* Vehicles */}
+                    {app.vehicles && app.vehicles.length > 0 && (
+                      <div style={{ marginBottom: '0.5rem' }}>
                         {app.vehicles.map((v) => (
-                          <div key={v.id} style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-                            <span style={{ fontWeight: 600 }}>
-                              {v.make} {v.model}
-                            </span>{' '}
+                          <div key={v.id} style={{ fontSize: '0.78rem', marginBottom: '0.2rem' }}>
+                            <span style={{ fontWeight: 600 }}>{v.make} {v.model}</span>{' '}
                             <span style={{ color: '#64748b' }}>({v.plateNumber})</span>
-                            <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                              Cap: {v.capacity} seats • {v.documents?.length || 0} Docs
-                            </div>
+                            <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Cap: {v.capacity} seats</div>
                           </div>
                         ))}
                       </div>
-                    ) : (
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>None submitted</span>
                     )}
+
+                    {/* Account Documents */}
+                    {app.accountDocuments && app.accountDocuments.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {app.accountDocuments.map((doc) => (
+                          <div
+                            key={doc.id}
+                            style={{
+                              padding: '0.35rem 0.5rem',
+                              backgroundColor: '#F8FAFC',
+                              borderRadius: '6px',
+                              border: '1px solid var(--color-border)',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                              <a
+                                href={getAccountDocumentUrl(doc.id)}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  fontWeight: 600,
+                                  color: 'var(--color-accent)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  textDecoration: 'underline',
+                                }}
+                              >
+                                <FileText size={12} /> {doc.documentName}
+                              </a>
+                              <span
+                                style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700,
+                                  padding: '0.1rem 0.35rem',
+                                  borderRadius: '4px',
+                                  backgroundColor:
+                                    doc.status === 'APPROVED' ? '#DCFCE7' : doc.status === 'REJECTED' ? '#FEE2E2' : '#FEF3C7',
+                                  color:
+                                    doc.status === 'APPROVED' ? '#166534' : doc.status === 'REJECTED' ? '#991B1B' : '#92400E',
+                                }}
+                              >
+                                {doc.status === 'PENDING_REVIEW' ? 'Pending' : doc.status}
+                              </span>
+                            </div>
+                            {doc.status === 'PENDING_REVIEW' && (
+                              <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.25rem' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleReviewDocument(doc.id, 'APPROVE')}
+                                  disabled={submittingDecision}
+                                  className="btn btn-primary btn-sm"
+                                  style={{ fontSize: '0.68rem', padding: '0.1rem 0.4rem', height: '22px' }}
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const reason = window.prompt('Enter rejection reason for this document:');
+                                    if (reason) handleReviewDocument(doc.id, 'REJECT', reason);
+                                  }}
+                                  disabled={submittingDecision}
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ fontSize: '0.68rem', padding: '0.1rem 0.4rem', height: '22px', color: '#DC2626' }}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : !app.vehicles || app.vehicles.length === 0 ? (
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>None submitted</span>
+                    ) : null}
                   </td>
                   <td>
                     <div>
