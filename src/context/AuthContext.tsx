@@ -71,12 +71,24 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setUser(res.user);
       return res.user;
     } catch (err: any) {
+
+      const errorData = err.response?.data;
+      if (errorData?.details?.onboardingToken) {
+        localStorage.setItem('schoolsafe_access_token', errorData.details.onboardingToken);
+        if (errorData.details.user) {
+          setUser(errorData.details.user);
+        }
+      }
       const msg = extractErrorMessage(err, 'Login failed. Please check your credentials.');
       setError(msg);
-      throw new Error(msg);
+      const appErr = new Error(msg);
+      (appErr as any).code = errorData?.code;
+      (appErr as any).details = errorData?.details;
+      throw appErr;
     } finally {
       setLoading(false);
     }
+
   };
 
   const register = async (payload: RegisterPayload): Promise<User> => {
