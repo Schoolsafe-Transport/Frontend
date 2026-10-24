@@ -1,24 +1,28 @@
 import { useState, useEffect, FC, FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User } from '../types/auth';
-import { AlertCircle, ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowRight, Mail, RefreshCw } from 'lucide-react';
+import { resendVerificationEmailApi } from '../services/api';
 
 interface LoginViewProps {
   onSwitchToRegister: () => void;
   onSwitchToForgotPassword: () => void;
+  onSwitchToVerifyEmail?: (email?: string) => void;
+  onSwitchToVerifyFayda?: () => void;
   onSuccess: (user?: User) => void;
 }
 
-export const LoginView: FC<LoginViewProps> = ({
-  onSwitchToRegister,
-  onSwitchToForgotPassword,
-  onSuccess,
-}) => {
+export const LoginView: FC<LoginViewProps> = (props) => {
+  const { onSwitchToRegister, onSwitchToForgotPassword, onSwitchToVerifyEmail, onSuccess } = props;
   const { login, error, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [verificationRequirement, setVerificationRequirement] = useState<'EMAIL' | null>(null);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendMessage, setResendMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Clear previous auth errors on mount and unmount
   useEffect(() => {
@@ -26,10 +30,21 @@ export const LoginView: FC<LoginViewProps> = ({
     return () => clearError();
   }, [clearError]);
 
+  // Handle resend countdown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     clearError();
     setLocalError(null);
+    setVerificationRequirement(null);
+    setResendMessage(null);
 
     if (!email || !password) {
       setLocalError('Please enter both your email address and password.');
@@ -41,9 +56,46 @@ export const LoginView: FC<LoginViewProps> = ({
       const user = await login(email, password);
       onSuccess(user);
     } catch (err: any) {
-      setLocalError(err.message || 'Unable to sign in. Please verify your credentials.');
+      const code = err.code;
+      if (code === 'EMAIL_VERIFICATION_REQUIRED') {
+        setVerificationRequirement('EMAIL');
+      } else {
+        setLocalError(err.message || 'Unable to sign in. Please verify your credentials.');
+      }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email || resendingEmail || resendCooldown > 0) return;
+    try {
+      setResendingEmail(true);
+      setResendMessage(null);
+      const res = await resendVerificationEmailApi(email);
+      if (res.delivered === false || res.success === false) {
+        setResendMessage({
+          type: 'error',
+          text: res.message || 'Email delivery failed. SMTP credentials must be configured on the server.',
+        });
+      } else {
+        setResendMessage({
+          type: 'success',
+          text: res.message || 'Verification link dispatched successfully through configured mail server.',
+        });
+        setResendCooldown(60);
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Unable to resend verification email right now.';
+      setResendMessage({
+        type: 'error',
+        text: msg,
+      });
+      if (err.response?.status === 429) {
+        setResendCooldown(60);
+      }
+    } finally {
+      setResendingEmail(false);
     }
   };
 
@@ -57,12 +109,53 @@ export const LoginView: FC<LoginViewProps> = ({
         <p>Access your school transit tracking, provider dashboard, or administration portal.</p>
       </div>
 
-      {(localError || error) && (
+      {verificationRequirement === 'EMAIL' && (
+        <div className="alert alert-warning" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertCircle size={20} style={{ color: '#d97706', flexShrink: 0 }} />
+            <div>
+              <strong style={{ display: 'block', fontSize: '0.95rem' }}>Email Verification Required</strong>
+              <span style={{ fontSize: '0.85rem' }}>Please verify your email address to continue using SchoolSafe.</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => (onSwitchToVerifyEmail ? onSwitchToVerifyEmail(email) : (window.location.href = '/verify-email'))}
+            >
+              <Mail size={15} style={{ marginRight: '4px' }} />
+              Verify Email Address
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleResendVerification}
+              disabled={resendingEmail || resendCooldown > 0}
+            >
+              <RefreshCw size={14} className={resendingEmail ? 'spin' : ''} style={{ marginRight: '4px' }} />
+              {resendingEmail
+                ? 'Sending...'
+                : resendCooldown > 0
+                ? `Resend in ${resendCooldown}s`
+                : 'Resend Verification Link'}
+            </button>
+          </div>
+          {resendMessage && (
+            <div style={{ fontSize: '0.8125rem', marginTop: '0.25rem', color: resendMessage.type === 'success' ? '#15803d' : '#b91c1c' }}>
+              {resendMessage.text}
+            </div>
+          )}
+        </div>
+      )}
+
+      {(localError || error) && !verificationRequirement && (
         <div className="alert alert-danger">
           <AlertCircle size={18} style={{ flexShrink: 0 }} />
           <span>{localError || error}</span>
         </div>
       )}
+
 
       <form onSubmit={handleSubmit} className="auth-form">
         <div className="form-group">
