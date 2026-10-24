@@ -12,7 +12,7 @@ import {
   deleteRouteApi,
 } from '../../services/api';
 
-export const ProviderRoutesPanel: FC<{ user: any }> = () => {
+export const ProviderRoutesPanel: FC<{ user: any }> = ({ user }) => {
   const [routes, setRoutes] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -128,6 +128,27 @@ export const ProviderRoutesPanel: FC<{ user: any }> = () => {
 
   return (
     <div className="panel-card">
+      {user?.status !== 'ACTIVE' && (
+        <div
+          style={{
+            padding: '0.85rem 1.25rem',
+            backgroundColor: '#FEF3C7',
+            border: '1px solid #FCD34D',
+            borderRadius: '8px',
+            color: '#92400E',
+            marginBottom: '1.25rem',
+            fontSize: '0.875rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <span>
+            <strong>Account Pending Administrator Approval:</strong> Your Transport Provider account has not been approved yet. Route creation and publishing will be unlocked once an administrator reviews and approves your documents and credentials.
+          </span>
+        </div>
+      )}
+
       <div className="panel-header">
         <div>
           <h3 className="panel-title">Defined School Transportation Routes</h3>
@@ -138,7 +159,10 @@ export const ProviderRoutesPanel: FC<{ user: any }> = () => {
         <button
           className="btn btn-primary btn-sm"
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          disabled={user?.status !== 'ACTIVE'}
+          title={user?.status !== 'ACTIVE' ? 'Account approval required to create routes' : undefined}
           onClick={() => {
+            if (user?.status !== 'ACTIVE') return;
             setError(null);
             setShowAddModal(true);
           }}
