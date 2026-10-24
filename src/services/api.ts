@@ -585,7 +585,60 @@ export const updateAdminUserStatusApi = async (userId: string, status: string) =
   return response.data.data;
 };
 
-export const getAdminStatsApi = async () => {
+export interface AdminPlatformStats {
+  metrics?: {
+    totalUsers: number;
+    parents: number;
+    pendingProviders: number;
+    approvedProviders: number;
+    pendingBusinesses: number;
+    approvedBusinesses: number;
+    pendingVehicles: number;
+    approvedVehicles: number;
+    totalVehicles: number;
+    activeRoutes: number;
+    totalRoutes: number;
+    activeTrips: number;
+    totalTrips: number;
+    openIncidents: number;
+    pendingPayments: number;
+    pendingCampaigns: number;
+    activeCampaigns: number;
+    totalCampaigns: number;
+    totalPaidVolumeETB: number;
+    paidTransactionsCount: number;
+  };
+  pendingApprovals?: {
+    providers: number;
+    vehicles: number;
+    businesses: number;
+    campaigns: number;
+    payments: number;
+    total: number;
+  };
+  users: {
+    total: number;
+    byRole: Record<string, number>;
+  };
+  transportation: {
+    activeRoutes: number;
+    totalVehicles: number;
+    activeAgreements: number;
+    activeTrips: number;
+  };
+  financials: {
+    totalPaidVolumeETB: number;
+    paidTransactionsCount: number;
+  };
+  safety: {
+    incidents: Record<string, number>;
+  };
+  advertising: {
+    activeCampaigns: number;
+  };
+}
+
+export const getAdminStatsApi = async (): Promise<AdminPlatformStats> => {
   const response = await apiClient.get('/admin/stats');
   return response.data.data;
 };
@@ -600,6 +653,46 @@ export const resolveAdminIncidentApi = async (incidentId: string, resolution: st
   return response.data.data;
 };
 
+export interface AccountDocument {
+  id: string;
+  userId: string;
+  documentType: string;
+  documentName: string;
+  fileUrl: string;
+  fileMimeType: string;
+  fileSize: number;
+  status: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
+  rejectionReason?: string | null;
+  reviewedById?: string | null;
+  reviewedAt?: string | null;
+  expiryDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuditLog {
+  id: string;
+  adminId: string;
+  targetUserId?: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  details?: any;
+  createdAt: string;
+  admin?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  targetUser?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+}
+
 export interface AdminApplication {
   id: string;
   email: string;
@@ -612,8 +705,12 @@ export interface AdminApplication {
   emailVerifiedAt?: string | null;
   isVerified: boolean;
   rejectionReason?: string | null;
+  businessName?: string | null;
+  licenseNumber?: string | null;
+  serviceArea?: string | null;
   createdAt: string;
   updatedAt: string;
+  accountDocuments?: AccountDocument[];
   vehicles?: Array<{
     id: string;
     make: string;
@@ -879,6 +976,331 @@ export const scanStudentPassApi = async (
   return response.data;
 };
 
+// ==========================================
+// Onboarding & Document Verification API
+// ==========================================
 
+export const saveOnboardingApi = async (payload: {
+  businessName?: string;
+  licenseNumber?: string;
+  serviceArea?: string;
+  registrationStep?: string;
+  phone?: string;
+  firstName?: string;
+  lastName?: string;
+}) => {
+  const response = await apiClient.post('/auth/onboarding', payload);
+  return response.data.data;
+};
 
+export const uploadAccountDocumentApi = async (formData: FormData): Promise<AccountDocument> => {
+  const response = await apiClient.post('/auth/documents/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data.data;
+};
+
+export const getMyDocumentsApi = async (): Promise<AccountDocument[]> => {
+  const response = await apiClient.get('/auth/documents');
+  return response.data.data;
+};
+
+export const getAccountDocumentUrl = (documentId: string): string => {
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const token = localStorage.getItem('schoolsafe_access_token');
+  return `${baseUrl}/auth/documents/${documentId}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+};
+
+// ==========================================
+// Parent Payments API
+// ==========================================
+
+export const getMyPaymentsApi = async (): Promise<PaymentRecord[]> => {
+  const response = await apiClient.get('/transportation/payments/my');
+  return response.data.data;
+};
+
+// ==========================================
+// Admin Audit Logs & Document Reviews
+// ==========================================
+
+export const listAuditLogsApi = async (params?: {
+  targetUserId?: string;
+  limit?: number;
+}): Promise<AuditLog[]> => {
+  const response = await apiClient.get('/admin/audit-logs', { params });
+  return response.data.data;
+};
+
+export const reviewAccountDocumentApi = async (
+  documentId: string,
+  payload: {
+    decision: 'APPROVE' | 'REJECT';
+    rejectionReason?: string;
+  }
+): Promise<AccountDocument> => {
+  const response = await apiClient.patch(`/admin/documents/${documentId}/review`, payload);
+  return response.data.data;
+};
+
+// ==========================================
+// Admin Vehicles Fleet API
+// ==========================================
+
+export interface AdminVehicle {
+  id: string;
+  providerId: string;
+  make: string;
+  model: string;
+  year?: number | null;
+  plateNumber: string;
+  capacity: number;
+  photoUrl?: string | null;
+  inspectionExpiry?: string | null;
+  isVerified: boolean;
+  status: string;
+  createdAt: string;
+  provider?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string | null;
+    businessName?: string | null;
+    isVerified: boolean;
+    status: string;
+  };
+  documents?: Array<{
+    id: string;
+    documentType: string;
+    documentUrl: string;
+    expiryDate?: string | null;
+    isVerified: boolean;
+  }>;
+  routes?: Array<{
+    id: string;
+    name: string;
+    status: string;
+    origin: string;
+    destinationSchool: string;
+  }>;
+}
+
+export const getAdminVehiclesApi = async (params?: {
+  status?: string;
+  isVerified?: boolean;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ total: number; page: number; limit: number; totalPages: number; vehicles: AdminVehicle[] }> => {
+  const response = await apiClient.get('/admin/vehicles', { params });
+  return response.data.data;
+};
+
+export const reviewAdminVehicleApi = async (
+  vehicleId: string,
+  payload: {
+    decision: 'APPROVE' | 'REJECT';
+    reason?: string;
+  }
+): Promise<AdminVehicle> => {
+  const response = await apiClient.patch(`/admin/vehicles/${vehicleId}/review`, payload);
+  return response.data.data;
+};
+
+// ==========================================
+// Admin User Management API
+// ==========================================
+
+export interface AdminUserRecord {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone?: string | null;
+  role: string;
+  status: string;
+  isVerified: boolean;
+  isEmailVerified: boolean;
+  businessName?: string | null;
+  licenseNumber?: string | null;
+  serviceArea?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ==========================================
+// Admin Routes & Trips API
+// ==========================================
+
+export interface AdminRouteRecord {
+  id: string;
+  name: string;
+  origin: string;
+  destinationSchool: string;
+  schoolBranch?: string | null;
+  departureTimeMorning?: string | null;
+  departureTimeAfternoon?: string | null;
+  serviceType: string;
+  capacity: number;
+  availableSeats: number;
+  monthlyPrice: number;
+  status: string;
+  completedTrips: number;
+  averageRating: number;
+  createdAt: string;
+  provider?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string | null;
+    businessName?: string | null;
+    isVerified: boolean;
+  };
+  vehicle?: {
+    id: string;
+    make: string;
+    model: string;
+    plateNumber: string;
+    capacity: number;
+    isVerified: boolean;
+    status: string;
+  };
+  stops?: Array<{
+    id: string;
+    name: string;
+    pickupTimeMorning?: string | null;
+    dropoffTimeAfternoon?: string | null;
+    orderIndex: number;
+  }>;
+  _count?: {
+    agreements: number;
+    requests: number;
+  };
+}
+
+export const getAdminRoutesApi = async (params?: {
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ total: number; page: number; limit: number; totalPages: number; routes: AdminRouteRecord[] }> => {
+  const response = await apiClient.get('/admin/routes', { params });
+  return response.data.data;
+};
+
+export interface AdminTripRecord {
+  id: string;
+  routeId: string;
+  vehicleId: string;
+  driverId: string;
+  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  startedAt?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  route?: {
+    id: string;
+    name: string;
+    origin: string;
+    destinationSchool: string;
+  };
+  vehicle?: {
+    id: string;
+    make: string;
+    model: string;
+    plateNumber: string;
+  };
+  driver?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone?: string | null;
+  };
+  passengers?: Array<{
+    id: string;
+    status: string;
+    student?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      schoolName: string;
+    };
+  }>;
+  locations?: Array<{
+    latitude: number;
+    longitude: number;
+    timestamp: string;
+  }>;
+}
+
+export const getAdminTripsApi = async (params?: {
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ total: number; page: number; limit: number; totalPages: number; trips: AdminTripRecord[] }> => {
+  const response = await apiClient.get('/admin/trips', { params });
+  return response.data.data;
+};
+
+// ==========================================
+// Admin Advertising Campaigns API
+// ==========================================
+
+export interface AdminCampaignRecord {
+  id: string;
+  businessId: string;
+  packageId?: string | null;
+  title: string;
+  description?: string | null;
+  bannerUrl: string;
+  targetUrl?: string | null;
+  placement: string;
+  status: 'DRAFT' | 'PENDING_REVIEW' | 'ACTIVE' | 'PAUSED' | 'REJECTED' | 'COMPLETED';
+  startDate?: string | null;
+  endDate?: string | null;
+  impressionsCount: number;
+  clicksCount: number;
+  createdAt: string;
+  business?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string | null;
+    businessName?: string | null;
+    isVerified: boolean;
+    status: string;
+  };
+  package?: {
+    name: string;
+    durationDays: number;
+    price: number;
+    placement: string;
+  } | null;
+}
+
+export const getAdminCampaignsApi = async (params?: {
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ total: number; page: number; limit: number; totalPages: number; campaigns: AdminCampaignRecord[] }> => {
+  const response = await apiClient.get('/admin/campaigns', { params });
+  return response.data.data;
+};
+
+export const reviewAdminCampaignApi = async (
+  campaignId: string,
+  payload: {
+    decision: 'APPROVE' | 'REJECT';
+    reason?: string;
+  }
+): Promise<AdminCampaignRecord> => {
+  const response = await apiClient.patch(`/admin/campaigns/${campaignId}/review`, payload);
+  return response.data.data;
+};
 
