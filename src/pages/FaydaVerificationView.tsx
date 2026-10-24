@@ -98,15 +98,20 @@ export const FaydaVerificationView: FC<FaydaVerificationViewProps> = ({
       setLoading(true);
       const res = await verifyFaydaFinApi(cleanFin, cleanOtp, transactionId || undefined);
       if (res.success) {
+        if (res.data?.tokens?.accessToken) {
+          localStorage.setItem('schoolsafe_access_token', res.data.tokens.accessToken);
+          localStorage.setItem('schoolsafe_refresh_token', res.data.tokens.refreshToken);
+        }
         const maskedId = res.data?.faydaIdNumber || `********${cleanFin.slice(-4)}`;
         setMaskedVerifiedId(maskedId);
-        setSuccess('Fayda National ID verified successfully! Your guardian account is now verified.');
+        setSuccess('Fayda National ID verified successfully! Your account is now officially verified.');
         await refreshUser();
         setTimeout(() => {
           onSuccess();
           handleReset();
-        }, 1500);
+        }, 1200);
       }
+
     } catch (err: any) {
       setError(
         err.response?.data?.message ||
