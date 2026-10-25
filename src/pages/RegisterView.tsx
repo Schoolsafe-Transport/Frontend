@@ -304,12 +304,12 @@ export const RegisterView: FC<RegisterViewProps> = ({
       if (res.delivered === false) {
         setEmailNotice({
           type: 'info',
-          text: res.message || 'Verification code refreshed. Please use the code shown below.',
+          text: res.message || 'Could not dispatch verification email. Please check your email address and try again.',
         });
       } else {
         setEmailNotice({
           type: 'success',
-          text: res.message || 'A fresh verification code has been dispatched.',
+          text: res.message || 'A fresh 6-digit verification code has been dispatched to your email address.',
         });
       }
       setResendCooldown(60);
