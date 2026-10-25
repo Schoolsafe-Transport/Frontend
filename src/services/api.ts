@@ -1,11 +1,16 @@
 import axios from 'axios';
 import { User, AuthResponse, RegisterPayload, AuthTokens } from '../types/auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const normalizeApiUrl = (url?: string): string => {
+  const trimmed = (url || 'http://localhost:5000/api').trim().replace(/\/+$/, '');
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+};
+
+export const API_BASE_URL = normalizeApiUrl(import.meta.env.VITE_API_URL);
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -843,8 +848,7 @@ export const reviewAdminPaymentApi = async (
 };
 
 export const getPaymentReceiptUrl = (paymentId: string) => {
-  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-  return `${baseUrl}/transportation/payments/${paymentId}/receipt`;
+  return `${API_BASE_URL}/transportation/payments/${paymentId}/receipt`;
 };
 
 // ==========================================
@@ -1008,9 +1012,8 @@ export const getMyDocumentsApi = async (): Promise<AccountDocument[]> => {
 };
 
 export const getAccountDocumentUrl = (documentId: string): string => {
-  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
   const token = localStorage.getItem('schoolsafe_access_token');
-  return `${baseUrl}/auth/documents/${documentId}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  return `${API_BASE_URL}/auth/documents/${documentId}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 };
 
 // ==========================================
