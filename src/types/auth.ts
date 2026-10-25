@@ -49,6 +49,8 @@ export interface AuthTokens {
 export interface AuthResponse {
   user: User;
   tokens: AuthTokens;
+  sixDigitCode?: string;
+  verificationToken?: string;
 }
 
 export interface RegisterPayload {

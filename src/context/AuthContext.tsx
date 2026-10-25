@@ -98,6 +98,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       const res = await registerApi(payload);
       localStorage.setItem('schoolsafe_access_token', res.tokens.accessToken);
       localStorage.setItem('schoolsafe_refresh_token', res.tokens.refreshToken);
+      if (res.sixDigitCode) {
+        localStorage.setItem('schoolsafe_verification_code', res.sixDigitCode);
+      }
       setUser(res.user);
       return res.user;
     } catch (err: any) {

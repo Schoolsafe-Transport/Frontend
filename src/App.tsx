@@ -93,11 +93,10 @@ export const getViewFromPath = (pathname: string): ViewState => {
       return 'FORGOT_PASSWORD';
     case '/verify-email':
     case '/verify-account':
-      return 'VERIFY_EMAIL';
     case '/verify-fayda':
     case '/fayda-verification':
     case '/verify':
-      return 'VERIFY_FAYDA';
+      return 'LANDING';
     default:
       return 'LANDING';
   }

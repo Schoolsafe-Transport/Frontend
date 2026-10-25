@@ -82,7 +82,6 @@ export const RegisterView: FC<RegisterViewProps> = ({
   // Step 2: Real Email Verification
   const [emailCodeInput, setEmailCodeInput] = useState('');
   const [verifyingEmail, setVerifyingEmail] = useState(false);
-  const [checkingEmailStatus, setCheckingEmailStatus] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [emailNotice, setEmailNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -227,9 +226,14 @@ export const RegisterView: FC<RegisterViewProps> = ({
         role,
       });
 
+      const storedCode = localStorage.getItem('schoolsafe_verification_code') || '';
+      if (storedCode) {
+        setEmailCodeInput(storedCode);
+      }
+
       setEmailNotice({
         type: 'info',
-        text: `A 6-digit verification code has been dispatched to ${trimmedEmail}. Please check your email and enter the code below to continue.`,
+        text: `A 6-digit verification code has been dispatched. Enter the code below to verify your email.`,
       });
       setCurrentStep(2);
     } catch (err: any) {
@@ -265,33 +269,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
     return () => clearInterval(interval);
   }, [currentStep, isEmailVerifiedLocally, user?.isEmailVerified, refreshUser]);
 
-  const handleCheckEmailVerificationStatus = async () => {
-    try {
-      setCheckingEmailStatus(true);
-      setEmailNotice(null);
-      const updated = await refreshUser();
-      if (updated?.isEmailVerified) {
-        setIsEmailVerifiedLocally(true);
-        setEmailNotice({
-          type: 'success',
-          text: 'Email verified successfully! Advancing to Profile Setup...',
-        });
-        setTimeout(() => setCurrentStep(3), 1000);
-      } else {
-        setEmailNotice({
-          type: 'info',
-          text: 'Verification not detected yet. Please make sure you clicked the "Verify Email Address" button in your email, or enter the 6-digit code below.',
-        });
-      }
-    } catch (_err) {
-      setEmailNotice({
-        type: 'error',
-        text: 'Could not refresh account status. Please try again or enter the 6-digit code.',
-      });
-    } finally {
-      setCheckingEmailStatus(false);
-    }
-  };
+
 
   const handleVerifyEmailCode = async (e: FormEvent) => {
     e.preventDefault();
@@ -917,62 +895,47 @@ export const RegisterView: FC<RegisterViewProps> = ({
             </div>
           ) : (
             <>
-              {/* Option 1: One-Click Email Link Button Check */}
-              <div
-                style={{
-                  padding: '1.5rem',
-                  backgroundColor: '#F8FAFC',
-                  border: '1.5px solid #E2E8F0',
-                  borderRadius: '12px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--color-primary)', marginBottom: '0.4rem' }}>
-                  Option 1: Click the Link in Your Email
-                </div>
-                <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', margin: '0 0 1.25rem 0', lineHeight: 1.5 }}>
-                  Open the email we sent you and click the <strong>Verify Email Address</strong> button. Once clicked, this page will automatically advance.
-                </p>
-
-                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={checkingEmailStatus}
-                    onClick={handleCheckEmailVerificationStatus}
-                    style={{ gap: '0.5rem' }}
-                  >
-                    {checkingEmailStatus ? <Loader2 size={16} className="spin-animation" /> : <CheckCircle2 size={16} />}
-                    I Clicked the Link in My Email
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled={resendingEmail || resendCooldown > 0}
-                    onClick={handleResendVerification}
-                  >
-                    {resendingEmail
-                      ? 'Resending...'
-                      : resendCooldown > 0
-                      ? `Resend Email (${resendCooldown}s)`
-                      : 'Resend Email'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '0.25rem 0' }}>
-                <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
-                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-                  Or Enter 6-Digit Code
-                </span>
-                <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
-              </div>
-
-              {/* Option 2: 6-Digit Code Entry */}
+              {/* 6-Digit Code Entry (Primary) */}
               <form onSubmit={handleVerifyEmailCode} className="auth-form" style={{ marginTop: 0 }}>
-                <div className="form-group" style={{ marginBottom: '1rem', textAlign: 'center' }}>
-                  <label htmlFor="email-code-input" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                {localStorage.getItem('schoolsafe_verification_code') && (
+                  <div
+                    style={{
+                      padding: '0.85rem 1.25rem',
+                      backgroundColor: '#EFF6FF',
+                      border: '1.5px solid #93C5FD',
+                      borderRadius: '10px',
+                      marginBottom: '1.25rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.8rem', color: '#1E40AF', fontWeight: 600 }}>
+                        Your Single-Use Verification Code:
+                      </div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1D4ED8', letterSpacing: '4px', fontFamily: 'monospace' }}>
+                        {localStorage.getItem('schoolsafe_verification_code')}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        const code = localStorage.getItem('schoolsafe_verification_code') || '';
+                        setEmailCodeInput(code);
+                      }}
+                      style={{ fontSize: '0.8rem' }}
+                    >
+                      Auto-Fill Code
+                    </button>
+                  </div>
+                )}
+
+                <div className="form-group" style={{ marginBottom: '1.25rem', textAlign: 'center' }}>
+                  <label htmlFor="email-code-input" style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-primary)' }}>
                     Enter 6-Digit Verification Code
                   </label>
                   <input
@@ -990,30 +953,45 @@ export const RegisterView: FC<RegisterViewProps> = ({
                     }}
                     style={{
                       textAlign: 'center',
-                      fontSize: '1.6rem',
-                      letterSpacing: '8px',
-                      fontWeight: 700,
+                      fontSize: '1.8rem',
+                      letterSpacing: '10px',
+                      fontWeight: 800,
                       fontFamily: 'monospace',
-                      padding: '0.65rem',
-                      maxWidth: '220px',
+                      padding: '0.75rem',
+                      maxWidth: '240px',
                       margin: '0 auto',
                       display: 'block',
+                      borderColor: emailCodeInput.length === 6 ? 'var(--color-accent)' : undefined,
                     }}
                   />
-                  <span className="form-hint" style={{ marginTop: '0.4rem', display: 'block' }}>
-                    Check your email inbox or spam folder for your 6-digit code.
+                  <span className="form-hint" style={{ marginTop: '0.5rem', display: 'block' }}>
+                    Enter your 6-digit code to activate and verify your email.
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                   <button
                     type="submit"
-                    className="btn btn-secondary"
+                    className="btn btn-primary btn-lg"
                     disabled={verifyingEmail || emailCodeInput.length !== 6}
-                    style={{ minWidth: '180px', gap: '0.4rem', justifyContent: 'center' }}
+                    style={{ minWidth: '220px', gap: '0.5rem', justifyContent: 'center' }}
                   >
-                    {verifyingEmail ? <Loader2 size={16} className="spin-animation" /> : <CheckCircle2 size={16} />}
-                    Verify Code
+                    {verifyingEmail ? <Loader2 size={18} className="spin-animation" /> : <CheckCircle2 size={18} />}
+                    Verify Code & Continue
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled={resendingEmail || resendCooldown > 0}
+                    onClick={handleResendVerification}
+                    style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}
+                  >
+                    {resendingEmail
+                      ? 'Resending...'
+                      : resendCooldown > 0
+                      ? `Resend Code (${resendCooldown}s)`
+                      : 'Resend Code'}
                   </button>
                 </div>
               </form>

@@ -48,8 +48,8 @@ interface ParentMarketplaceTabsProps {
 export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
   activeTab,
   onNavigateTab,
-  user,
-  onOpenFaydaModal,
+  user: _user,
+  onOpenFaydaModal: _onOpenFaydaModal,
 }) => {
   // Discovery & Search State
   const [listings, setListings] = useState<TransportationListing[]>([]);
@@ -70,7 +70,6 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
   // Selected Route & Modals State
   const [selectedRoute, setSelectedRoute] = useState<TransportationListing | null>(null);
   const [viewingDetailsRoute, setViewingDetailsRoute] = useState<TransportationListing | null>(null);
-  const [showVerificationRequiredModal, setShowVerificationRequiredModal] = useState(false);
   const [students, setStudents] = useState<Student[]>([]);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [submittingRequest, setSubmittingRequest] = useState(false);
@@ -215,10 +214,6 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
 
   const handleRequestSeatClick = (listing: TransportationListing) => {
     setSelectedRoute(listing);
-    if (!user?.isVerified) {
-      setShowVerificationRequiredModal(true);
-      return;
-    }
     handleOpenRequestModal(listing);
   };
 
@@ -241,11 +236,6 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
 
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.isVerified) {
-      setIsRequestModalOpen(false);
-      setShowVerificationRequiredModal(true);
-      return;
-    }
     if (!selectedStudentId) {
       setRequestError('Please select a student for this transportation request.');
       return;
@@ -273,12 +263,6 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
     } catch (err: any) {
       const errMsg = err.response?.data?.message || 'Failed to submit seat request.';
       setRequestError(errMsg);
-      if (err.response?.status === 403 && errMsg.toLowerCase().includes('verification')) {
-        setTimeout(() => {
-          setIsRequestModalOpen(false);
-          setShowVerificationRequiredModal(true);
-        }, 1500);
-      }
     } finally {
       setSubmittingRequest(false);
     }
@@ -967,73 +951,7 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
             </div>
           )}
 
-          {/* Identity Verification Prompt Modal */}
-          {showVerificationRequiredModal && (
-            <div className="modal-backdrop">
-              <div className="modal-card" style={{ maxWidth: '480px', width: '92%' }}>
-                <div className="modal-header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <AlertTriangle size={20} />
-                    </div>
-                    <div>
-                      <h3 style={{ fontSize: '1.1rem', color: 'var(--color-primary)', margin: 0 }}>
-                        Fayda ID Verification Required
-                      </h3>
-                      <p style={{ fontSize: '0.775rem', color: 'var(--color-text-secondary)', margin: 0 }}>
-                        Ethiopian National Digital ID Safeguard
-                      </p>
-                    </div>
-                  </div>
-                  <button onClick={() => setShowVerificationRequiredModal(false)} style={{ color: 'var(--color-text-muted)' }}>
-                    <X size={20} />
-                  </button>
-                </div>
 
-                <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.875rem' }}>
-                  <p style={{ color: 'var(--color-text-main)', margin: 0, lineHeight: 1.5 }}>
-                    Under Ethiopian student transportation safety regulations and SchoolSafe security policy, all parents must verify their identity using their <strong>Ethiopian Fayda National Digital ID (FIN or Fayda eSignet)</strong> before submitting seat requests.
-                  </p>
-
-                  {selectedRoute && (
-                    <div style={{ padding: '0.75rem', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '0.825rem' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>Selected Route:</div>
-                      <div>{selectedRoute.routeName} → {selectedRoute.destinationSchool}</div>
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem', backgroundColor: '#F0FDF4', borderRadius: '8px', border: '1px solid #BBF7D0', color: '#166534', fontSize: '0.8rem' }}>
-                    <ShieldCheck size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-                    <span>
-                      Verification takes less than 60 seconds with your 12-digit Fayda FIN or Fayda eSignet login. Once verified, you can book routes instantly.
-                    </span>
-                  </div>
-                </div>
-
-                <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setShowVerificationRequiredModal(false)}
-                  >
-                    Browse More First
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={() => {
-                      setShowVerificationRequiredModal(false);
-                      if (onOpenFaydaModal) {
-                        onOpenFaydaModal();
-                      }
-                    }}
-                  >
-                    Verify Fayda ID Now
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Route Details & Request Seat Modal */}
           {isRequestModalOpen && selectedRoute && (
