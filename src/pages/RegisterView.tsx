@@ -226,10 +226,6 @@ export const RegisterView: FC<RegisterViewProps> = ({
         role,
       });
 
-      const storedCode = localStorage.getItem('schoolsafe_verification_code') || '';
-      if (storedCode) {
-        setEmailCodeInput(storedCode);
-      }
 
       setEmailNotice({
         type: 'info',
@@ -246,6 +242,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
   // -------------------------------------------------------------
   // Step 2: Email Verification (Auto-polling + 6-digit Code + Button Click)
   // -------------------------------------------------------------
+
   // Auto-poll verification status while user is on Step 2
   useEffect(() => {
     if (currentStep !== 2 || isEmailVerifiedLocally || user?.isEmailVerified) return;
@@ -268,8 +265,6 @@ export const RegisterView: FC<RegisterViewProps> = ({
 
     return () => clearInterval(interval);
   }, [currentStep, isEmailVerifiedLocally, user?.isEmailVerified, refreshUser]);
-
-
 
   const handleVerifyEmailCode = async (e: FormEvent) => {
     e.preventDefault();
@@ -309,12 +304,12 @@ export const RegisterView: FC<RegisterViewProps> = ({
       if (res.delivered === false) {
         setEmailNotice({
           type: 'info',
-          text: 'Notice: Outbound SMTP email service is currently pending production configuration. You can proceed with your application.',
+          text: res.message || 'Verification code refreshed. Please use the code shown below.',
         });
       } else {
         setEmailNotice({
           type: 'success',
-          text: res.message || 'A fresh verification link and code have been sent to your email address.',
+          text: res.message || 'A fresh verification code has been dispatched.',
         });
       }
       setResendCooldown(60);
@@ -897,42 +892,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
             <>
               {/* 6-Digit Code Entry (Primary) */}
               <form onSubmit={handleVerifyEmailCode} className="auth-form" style={{ marginTop: 0 }}>
-                {localStorage.getItem('schoolsafe_verification_code') && (
-                  <div
-                    style={{
-                      padding: '0.85rem 1.25rem',
-                      backgroundColor: '#EFF6FF',
-                      border: '1.5px solid #93C5FD',
-                      borderRadius: '10px',
-                      marginBottom: '1.25rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: '0.5rem',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: '0.8rem', color: '#1E40AF', fontWeight: 600 }}>
-                        Your Single-Use Verification Code:
-                      </div>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1D4ED8', letterSpacing: '4px', fontFamily: 'monospace' }}>
-                        {localStorage.getItem('schoolsafe_verification_code')}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => {
-                        const code = localStorage.getItem('schoolsafe_verification_code') || '';
-                        setEmailCodeInput(code);
-                      }}
-                      style={{ fontSize: '0.8rem' }}
-                    >
-                      Auto-Fill Code
-                    </button>
-                  </div>
-                )}
+
 
                 <div className="form-group" style={{ marginBottom: '1.25rem', textAlign: 'center' }}>
                   <label htmlFor="email-code-input" style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-primary)' }}>

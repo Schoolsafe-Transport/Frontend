@@ -151,7 +151,11 @@ export const checkUserVerificationStatus = (user: User | null): {
     return { canAccessDashboard: false, requiredView: 'LOGIN', reason: 'UNAUTHENTICATED' };
   }
 
-  // Dashboard access is granted directly without blocking onboarding screens
+  // Email must be verified before accessing the dashboard
+  if (!user.isEmailVerified) {
+    return { canAccessDashboard: false, requiredView: 'VERIFY_EMAIL', reason: 'EMAIL_VERIFICATION_REQUIRED' };
+  }
+
   return { canAccessDashboard: true };
 };
 
@@ -310,6 +314,12 @@ const MainContent: FC = () => {
 
   // Dedicated Authenticated Dashboard Layout:
   if (user && currentView === 'LANDING') {
+    // Gate: email must be verified before dashboard access
+    if (!user.isEmailVerified) {
+      navigateTo('VERIFY_EMAIL');
+      return null;
+    }
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--color-bg)' }}>
         {faydaNotification && (
@@ -499,8 +509,13 @@ const MainContent: FC = () => {
                 <RegisterView
                   initialRole={selectedInitialRole}
                   onSwitchToLogin={openLogin}
-                  onSuccess={() => {
-                    navigateTo('LANDING');
+                  onSuccess={(registeredUser) => {
+                    // After registration, always go through email verification first
+                    if (registeredUser && registeredUser.isEmailVerified) {
+                      navigateTo('LANDING');
+                    } else {
+                      navigateTo('VERIFY_EMAIL');
+                    }
                   }}
                 />
               </div>

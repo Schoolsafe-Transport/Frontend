@@ -77,7 +77,12 @@ export const loginApi = async (email: string, password: string): Promise<AuthRes
 
 export const registerApi = async (payload: RegisterPayload): Promise<AuthResponse> => {
   const response = await apiClient.post('/auth/register', payload);
-  return response.data.data;
+  const data = response.data?.data || {};
+  const verificationToken = data.verificationToken || response.data?.verificationToken;
+  return {
+    ...data,
+    verificationToken,
+  };
 };
 
 export const logoutApi = async (refreshToken?: string): Promise<void> => {
@@ -104,7 +109,7 @@ export const verifyEmailApi = async (token: string): Promise<{ success: boolean;
   return response.data;
 };
 
-export const resendVerificationEmailApi = async (email?: string): Promise<{ success: boolean; message: string; delivered?: boolean }> => {
+export const resendVerificationEmailApi = async (email?: string): Promise<{ success: boolean; message: string; delivered?: boolean; verificationToken?: string }> => {
   const response = await apiClient.post('/auth/resend-verification', { email });
   return response.data;
 };
