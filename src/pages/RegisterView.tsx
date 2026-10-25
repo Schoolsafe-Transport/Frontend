@@ -1390,28 +1390,32 @@ export const RegisterView: FC<RegisterViewProps> = ({
               width: '64px',
               height: '64px',
               borderRadius: '50%',
-              backgroundColor: role === 'PARENT' ? 'var(--color-success-light)' : '#EFF6FF',
-              color: role === 'PARENT' ? 'var(--color-success)' : 'var(--color-accent)',
+              backgroundColor: user?.status === 'ACTIVE' ? 'var(--color-success-light)' : '#FEF3C7',
+              color: user?.status === 'ACTIVE' ? 'var(--color-success)' : '#D97706',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto',
             }}
           >
-            {role === 'PARENT' ? <CheckCircle2 size={36} /> : <Clock size={36} />}
+            {user?.status === 'ACTIVE' ? <CheckCircle2 size={36} /> : <Clock size={36} />}
           </div>
 
           <div>
             <h3 style={{ fontSize: '1.35rem', color: 'var(--color-primary)', marginBottom: '0.5rem' }}>
-              {role === 'PARENT'
+              {user?.status === 'ACTIVE'
                 ? 'Welcome to SchoolSafe!'
+                : role === 'PARENT'
+                ? 'Parent Registration Submitted'
                 : role === 'TRANSPORT_PROVIDER'
                 ? 'Operator Application Received'
                 : 'Business Account Submitted'}
             </h3>
             <p style={{ fontSize: '0.95rem', color: 'var(--color-text-secondary)', maxWidth: '480px', margin: '0 auto' }}>
-              {role === 'PARENT' ? (
-                'Your parent account has been successfully created. You can now search for verified transportation routes, manage your children, and request safe daily commutes.'
+              {user?.status === 'ACTIVE' ? (
+                'Your account has been approved and activated. You can now search for verified transportation routes, manage your children, and request safe daily commutes.'
+              ) : role === 'PARENT' ? (
+                'Your parent account has been successfully registered and is pending administrator review and approval. An administrator will review your account before full access is activated.'
               ) : role === 'TRANSPORT_PROVIDER' ? (
                 'Your driver and vehicle documents have been uploaded to our secure document repository. A SchoolSafe administrator will review your application. Unapproved providers cannot publish active routes until approved.'
               ) : (
@@ -1452,10 +1456,10 @@ export const RegisterView: FC<RegisterViewProps> = ({
               <span
                 style={{
                   fontWeight: 700,
-                  color: role === 'PARENT' ? 'var(--color-success)' : '#D97706',
+                  color: user?.status === 'ACTIVE' ? 'var(--color-success)' : '#D97706',
                 }}
               >
-                {role === 'PARENT' ? 'ACTIVE' : 'PENDING_ADMIN_REVIEW'}
+                {user?.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_ADMIN_REVIEW'}
               </span>
             </div>
           </div>
