@@ -1,6 +1,6 @@
 import { useState, useEffect, FC } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { normalizeToMVPActor, getActorDisplayName, MVPActor, UserRole } from '../types/auth';
+import { normalizeToMVPActor, getActorDisplayName, MVPActor } from '../types/auth';
 import {
   Shield,
   ShieldCheck,
@@ -31,7 +31,6 @@ import {
   Loader2,
   X,
   QrCode,
-  RefreshCw,
 } from 'lucide-react';
 import { PrintableTransportPassModal } from '../components/marketplace/PrintableTransportPassModal';
 import { ParentMarketplaceTabs } from '../components/marketplace/ParentMarketplaceTabs';
@@ -45,7 +44,6 @@ import { UserProfilePanel } from '../components/dashboard/UserProfilePanel';
 import { ActiveAdBanner } from '../components/dashboard/ActiveAdBanner';
 import { FaydaVerificationModal } from '../components/dashboard/FaydaVerificationModal';
 import {
-  resendVerificationEmailApi,
   getStudentsApi,
   createStudentApi,
   getMyAgreementsApi,
@@ -83,101 +81,12 @@ interface DashboardViewProps {
 export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => {
   const { user, logout } = useAuth();
   const [showFaydaModal, setShowFaydaModal] = useState(false);
-  const [resendingEmail, setResendingEmail] = useState(false);
-  const [resendNotice, setResendNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   if (!user) return null;
 
   // Dedicated Admin Console: System Administrators receive the redesigned AdminDashboardRoot layout directly
   if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
     return <AdminDashboardRoot />;
-  }
-
-  const isEmailPending = !user.isEmailVerified;
-  const rolesRequiringFayda: UserRole[] = ['PARENT', 'TRANSPORT_PROVIDER', 'DRIVER'];
-  const isFaydaPending = rolesRequiringFayda.includes(user.role) && !user.isVerified;
-
-  const handleResendVerification = async () => {
-    if (!user?.email || resendingEmail) return;
-    try {
-      setResendingEmail(true);
-      setResendNotice(null);
-      const res = await resendVerificationEmailApi(user.email);
-      if (res.delivered) {
-        setResendNotice({
-          type: 'success',
-          text: 'A fresh verification link has been dispatched to your email address.',
-        });
-      } else {
-        setResendNotice({
-          type: 'error',
-          text: res.message || 'SMTP delivery could not be performed. Please verify mail configuration.',
-        });
-      }
-    } catch (err: any) {
-      setResendNotice({
-        type: 'error',
-        text: err.response?.data?.message || err.message || 'Failed to resend verification link.',
-      });
-    } finally {
-      setResendingEmail(false);
-    }
-  };
-
-  if (isEmailPending || isFaydaPending) {
-    return (
-      <div className="dashboard-layout" style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
-        <div style={{ maxWidth: '560px', width: '100%', background: '#FFFFFF', borderRadius: '16px', padding: '2.5rem', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', textAlign: 'center', border: '1px solid #E2E8F0' }}>
-          <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#FEF3C7', color: '#D97706', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem' }}>
-            {isEmailPending ? <AlertCircle size={32} /> : <ShieldCheck size={32} />}
-          </div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: '0.75rem' }}>
-            {isEmailPending ? 'Email Verification Required' : 'Fayda Identity Verification Required'}
-          </h2>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.925rem', lineHeight: 1.6, marginBottom: '1.75rem' }}>
-            {isEmailPending
-              ? 'Please verify your email address to continue using SchoolSafe. Normal dashboard access and child transit features remain restricted until email verification is complete.'
-              : 'Safeguarding policies require verified national digital identity before accessing transportation services, booking seats, or managing school routes.'}
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {isEmailPending ? (
-              <button
-                className="btn btn-primary"
-                onClick={handleResendVerification}
-                disabled={resendingEmail}
-                style={{ width: '100%', justifyContent: 'center' }}
-              >
-                {resendingEmail ? <Loader2 size={18} className="spin" /> : <RefreshCw size={18} />}
-                <span>{resendingEmail ? 'Sending...' : 'Resend Verification Link'}</span>
-              </button>
-            ) : (
-              <button
-                className="btn btn-primary"
-                onClick={() => (onOpenVerifyFayda ? onOpenVerifyFayda() : setShowFaydaModal(true))}
-                style={{ width: '100%', justifyContent: 'center' }}
-              >
-                <ShieldCheck size={18} />
-                <span>Verify with Fayda National ID</span>
-              </button>
-            )}
-            <button className="btn btn-secondary" onClick={logout} style={{ width: '100%', justifyContent: 'center' }}>
-              <LogOut size={16} />
-              <span>Sign Out</span>
-            </button>
-          </div>
-
-          {resendNotice && (
-            <div
-              className={`alert ${resendNotice.type === 'success' ? 'alert-success' : 'alert-danger'}`}
-              style={{ marginTop: '1.25rem', fontSize: '0.875rem' }}
-            >
-              {resendNotice.text}
-            </div>
-          )}
-        </div>
-      </div>
-    );
   }
 
 
@@ -311,68 +220,6 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
           </button>
         </div>
       </div>
-
-      {/* Unverified Email Warning Banner */}
-      {!user.isEmailVerified && (
-        <div
-          style={{
-            backgroundColor: '#FEF3C7',
-            borderBottom: '1px solid #FCD34D',
-            padding: '0.75rem 1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '1rem',
-            flexWrap: 'wrap',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <AlertTriangle size={18} style={{ color: '#D97706', shrink: 0 }} />
-            <span style={{ fontSize: '0.875rem', color: '#92400E', fontWeight: 500 }}>
-              <strong>Email Verification Required:</strong> Your email address ({user.email}) has not been confirmed.
-              Certain actions like booking student transportation, publishing routes, or creating campaigns require verified email.
-            </span>
-          </div>
-          <button
-            onClick={handleResendVerification}
-            disabled={resendingEmail}
-            className="btn btn-secondary btn-sm"
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderColor: '#F59E0B',
-              color: '#B45309',
-              fontWeight: 700,
-              fontSize: '0.8rem',
-            }}
-          >
-            {resendingEmail ? 'Sending...' : 'Resend Verification Link'}
-          </button>
-        </div>
-      )}
-
-      {/* Resend Notice Feedback */}
-      {resendNotice && (
-        <div
-          style={{
-            backgroundColor: resendNotice.type === 'success' ? '#ECFDF5' : '#FEF2F2',
-            borderBottom: `1px solid ${resendNotice.type === 'success' ? '#A7F3D0' : '#FECACA'}`,
-            padding: '0.6rem 1.5rem',
-            fontSize: '0.8125rem',
-            color: resendNotice.type === 'success' ? '#065F46' : '#991B1B',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <span>{resendNotice.text}</span>
-          <button
-            onClick={() => setResendNotice(null)}
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 700 }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
 
       {/* Pending Administrator Review Banner */}
       {user.status === 'PENDING' && (

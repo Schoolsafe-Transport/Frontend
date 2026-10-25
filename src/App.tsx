@@ -152,15 +152,7 @@ export const checkUserVerificationStatus = (user: User | null): {
     return { canAccessDashboard: false, requiredView: 'LOGIN', reason: 'UNAUTHENTICATED' };
   }
 
-  // 1. Email verification required for all roles
-  if (!user.isEmailVerified) {
-    return {
-      canAccessDashboard: false,
-      requiredView: 'VERIFY_EMAIL',
-      reason: 'EMAIL_VERIFICATION_REQUIRED',
-    };
-  }
-
+  // Dashboard access is granted directly without blocking onboarding screens
   return { canAccessDashboard: true };
 };
 
