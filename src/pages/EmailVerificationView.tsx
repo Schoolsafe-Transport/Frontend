@@ -113,18 +113,8 @@ export const EmailVerificationView: FC<EmailVerificationViewProps> = ({
     }
   };
 
-  const rolesRequiringFayda = ['PARENT', 'TRANSPORT_PROVIDER', 'DRIVER'];
-  const needsFayda = Boolean(user?.role && rolesRequiringFayda.includes(user.role) && !user.isVerified);
-
   const handleGoDashboard = () => {
-    if (needsFayda) {
-      if (onNavigateToDashboard) {
-        window.history.pushState({ view: 'VERIFY_FAYDA' }, '', '/verify-fayda');
-        window.dispatchEvent(new PopStateEvent('popstate'));
-      } else {
-        window.location.href = '/verify-fayda';
-      }
-    } else if (onNavigateToDashboard) {
+    if (onNavigateToDashboard) {
       onNavigateToDashboard();
     } else {
       window.location.href = '/';
@@ -204,7 +194,7 @@ export const EmailVerificationView: FC<EmailVerificationViewProps> = ({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <button className="btn btn-primary" onClick={handleGoDashboard} style={{ width: '100%' }}>
-              <span>{needsFayda ? 'Continue to Fayda ID Verification' : 'Continue to Dashboard'}</span>
+              <span>Continue to Dashboard</span>
               <ArrowRight size={18} />
             </button>
 

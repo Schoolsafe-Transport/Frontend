@@ -157,7 +157,7 @@ export const checkUserVerificationStatus = (user: User | null): {
 };
 
 const MainContent: FC = () => {
-  const { user, refreshUser, clearError, logout } = useAuth();
+  const { user, refreshUser, clearError } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>(() => {
     if (typeof window !== 'undefined') {
       return getViewFromPath(window.location.pathname);
@@ -310,75 +310,7 @@ const MainContent: FC = () => {
   }
 
   // Dedicated Authenticated Dashboard Layout:
-  // STRICT GUARD: Only rendered when user exists AND satisfies ALL required verification checks!
   if (user && currentView === 'LANDING') {
-    const status = checkUserVerificationStatus(user);
-    if (!status.canAccessDashboard && status.requiredView) {
-      // Re-route unverified user immediately to their required verification onboarding screen
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--color-bg)' }}>
-          <header className="navbar-clean">
-            <div className="container navbar-inner">
-              <div className="brand-link" onClick={openHome} role="button" tabIndex={0}>
-                <div className="brand-logo-wrap">
-                  <img src="/logo-shield.png" alt="SchoolSafe Logo" className="brand-logo-img" />
-                </div>
-                <div className="brand-text-col">
-                  <span className="brand-text">SchoolSafe</span>
-                  <span className="brand-tagline">SMART TRANSIT</span>
-                </div>
-              </div>
-              <div className="nav-cta-group">
-                <button className="btn btn-secondary btn-sm" onClick={logout}>Sign Out</button>
-              </div>
-            </div>
-          </header>
-          <main style={{ flex: 1, padding: '2rem 1rem' }}>
-            <div className="container" style={{ maxWidth: '620px' }}>
-              {status.requiredView === 'VERIFY_EMAIL' ? (
-                <>
-                  <div className="alert alert-warning" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <AlertCircle size={22} style={{ flexShrink: 0, color: '#d97706' }} />
-                    <div>
-                      <strong style={{ display: 'block', fontSize: '1rem', color: '#92400e' }}>Email Verification Required</strong>
-                      <span style={{ fontSize: '0.875rem', color: '#78350f' }}>Please verify your email address to continue using SchoolSafe and access your dashboard.</span>
-                    </div>
-                  </div>
-                  <EmailVerificationView
-                    onSuccess={() => {
-                      refreshUser();
-                      navigateTo('LANDING');
-                    }}
-                    onNavigateToDashboard={() => navigateTo('LANDING')}
-                    onSwitchToLogin={openLogin}
-                  />
-                </>
-              ) : (
-                <>
-                  <div className="alert alert-warning" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <ShieldCheck size={22} style={{ flexShrink: 0, color: '#d97706' }} />
-                    <div>
-                      <strong style={{ display: 'block', fontSize: '1rem', color: '#92400e' }}>Fayda Identity Verification Required</strong>
-                      <span style={{ fontSize: '0.875rem', color: '#78350f' }}>Please complete your Ethiopian National Digital ID verification before accessing the dashboard.</span>
-                    </div>
-                  </div>
-                  <FaydaVerificationView
-                    onSuccess={() => {
-                      refreshUser();
-                      navigateTo('LANDING');
-                    }}
-                    onSkipToDashboard={() => {
-                      // Cannot skip to dashboard without verification!
-                    }}
-                  />
-                </>
-              )}
-            </div>
-          </main>
-        </div>
-      );
-    }
-
     return (
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--color-bg)' }}>
         {faydaNotification && (
@@ -569,7 +501,7 @@ const MainContent: FC = () => {
                   initialRole={selectedInitialRole}
                   onSwitchToLogin={openLogin}
                   onSuccess={() => {
-                    navigateTo('VERIFY_EMAIL');
+                    navigateTo('LANDING');
                   }}
                 />
               </div>
@@ -579,9 +511,7 @@ const MainContent: FC = () => {
               <div className="auth-page">
                 <FaydaVerificationView
                   onSuccess={() => navigateTo('LANDING')}
-                  onSkipToDashboard={() => {
-                    // Cannot bypass to dashboard without verification
-                  }}
+                  onSkipToDashboard={() => navigateTo('LANDING')}
                 />
               </div>
             )}

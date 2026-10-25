@@ -227,8 +227,11 @@ export const RegisterView: FC<RegisterViewProps> = ({
         role,
       });
 
-      // Advance directly to role-specific setup (skipping email verification)
-      setCurrentStep(3);
+      setEmailNotice({
+        type: 'info',
+        text: `A 6-digit verification code has been dispatched to ${trimmedEmail}. Please check your email and enter the code below to continue.`,
+      });
+      setCurrentStep(2);
     } catch (err: any) {
       setStep1Error(err.message || 'Registration failed. Please check your details.');
     } finally {
@@ -488,6 +491,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
   // Step Progress Bar Labels
   const stepLabels = [
     { num: 1, title: 'Basics' },
+    { num: 2, title: 'Email' },
     { num: 3, title: role === 'PARENT' ? 'Child Info' : role === 'BUSINESS' ? 'Business' : 'Operator' },
     { num: 4, title: 'Complete' },
   ];
@@ -501,13 +505,15 @@ export const RegisterView: FC<RegisterViewProps> = ({
         </div>
         <h2 style={{ fontSize: '1.65rem' }}>
           {currentStep === 1 && 'Create Your SchoolSafe Account'}
+          {currentStep === 2 && 'Verify Your Email Address'}
           {currentStep === 3 && (role === 'PARENT' ? 'Parent & Student Profile' : role === 'BUSINESS' ? 'Business & Advertising Profile' : 'Transport Operator & Fleet Details')}
           {currentStep === 4 && 'Registration Complete'}
         </h2>
         <p style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
-          {currentStep === 1 && 'Step 1 of 3: Secure platform registration and account setup.'}
-          {currentStep === 3 && 'Step 2 of 3: Role-specific profile details and setup.'}
-          {currentStep === 4 && 'Step 3 of 3: Final review and dashboard activation.'}
+          {currentStep === 1 && 'Step 1 of 4: Secure platform registration and account setup.'}
+          {currentStep === 2 && 'Step 2 of 4: Enter the 6-digit code sent to your email.'}
+          {currentStep === 3 && 'Step 3 of 4: Role-specific profile details and setup.'}
+          {currentStep === 4 && 'Step 4 of 4: Final review and dashboard activation.'}
         </p>
       </div>
 
@@ -532,7 +538,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
               position: 'absolute',
               top: '16px',
               left: '20px',
-              width: `${currentStep === 1 ? 0 : currentStep === 3 ? 50 : 100}%`,
+              width: `${((currentStep - 1) / 3) * 88}%`,
               height: '3px',
               backgroundColor: 'var(--color-accent)',
               transition: 'width 0.3s ease',
@@ -810,7 +816,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
               </>
             ) : (
               <>
-                {role === 'PARENT' ? 'Continue to Child Information' : 'Continue to Profile Details'} <ArrowRight size={16} />
+                Continue to Email Verification <ArrowRight size={16} />
               </>
             )}
           </button>
