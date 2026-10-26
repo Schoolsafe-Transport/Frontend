@@ -1026,7 +1026,7 @@ export const getMyDocumentsApi = async (): Promise<AccountDocument[]> => {
 };
 
 export const getAccountDocumentUrl = (documentId: string): string => {
-  const token = localStorage.getItem('schoolsafe_access_token');
+  const token = localStorage.getItem('schoolsafe_access_token') || localStorage.getItem('schoolsafe_refresh_token');
   return `${API_BASE_URL}/auth/documents/${documentId}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 };
 
