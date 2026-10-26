@@ -227,20 +227,21 @@ export const RegisterView: FC<RegisterViewProps> = ({
         role,
       });
 
-      if (regUser?.latestVerificationCode) {
-        setServerVerificationCode(regUser.latestVerificationCode);
-
-        // Immediate email dispatch via Vercel serverless function
-        fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: trimmedEmail,
-            recipientName: trimmedFirst,
-            sixDigitCode: regUser.latestVerificationCode,
-          }),
-        }).catch((err) => console.warn('Email dispatch notice:', err.message));
+      const code = regUser?.latestVerificationCode || (regUser as any)?.sixDigitCode || serverVerificationCode;
+      if (code) {
+        setServerVerificationCode(code);
       }
+
+      // Immediate email dispatch via Vercel serverless function to guarantee delivery to real inbox
+      fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: trimmedEmail,
+          recipientName: trimmedFirst,
+          sixDigitCode: code,
+        }),
+      }).catch((err) => console.warn('Email dispatch notice:', err.message));
 
       setEmailNotice({
         type: 'info',
