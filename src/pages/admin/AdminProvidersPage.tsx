@@ -481,11 +481,30 @@ export const AdminProvidersPage: FC<{ onRefreshStats?: () => void }> = ({ onRefr
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <FileText size={20} style={{ color: '#2563EB' }} />
+                        <FileText
+                          size={20}
+                          style={{
+                            color: doc.documentName?.toLowerCase().endsWith('.pdf') ? '#D97706' : '#2563EB',
+                          }}
+                        />
                         <div>
-                          <strong style={{ fontSize: '0.875rem', color: '#0F172A', display: 'block' }}>
-                            {doc.documentType.replace('_', ' ')}
-                          </strong>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <strong style={{ fontSize: '0.875rem', color: '#0F172A' }}>
+                              {doc.documentType.replace(/_/g, ' ')}
+                            </strong>
+                            <span
+                              style={{
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                padding: '0.1rem 0.45rem',
+                                borderRadius: '4px',
+                                backgroundColor: doc.documentName?.toLowerCase().endsWith('.pdf') ? '#FEF3C7' : '#EFF6FF',
+                                color: doc.documentName?.toLowerCase().endsWith('.pdf') ? '#92400E' : '#1D4ED8',
+                              }}
+                            >
+                              {doc.documentName?.toLowerCase().endsWith('.pdf') ? 'PDF' : 'PNG'}
+                            </span>
+                          </div>
                           <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
                             {doc.documentName} • Uploaded {new Date(doc.createdAt).toLocaleDateString()}
                           </span>
@@ -514,22 +533,23 @@ export const AdminProvidersPage: FC<{ onRefreshStats?: () => void }> = ({ onRefr
                           <ExternalLink size={12} />
                         </a>
 
-                        {((doc.status as string) === 'PENDING' || (doc.status as string) === 'PENDING_REVIEW') && (
-                          <>
-                            <button
-                              className="admin-btn admin-btn-success admin-btn-sm"
-                              onClick={() => handleReviewDocument(doc.id, 'APPROVE')}
-                            >
-                              Approve Doc
-                            </button>
-                            <button
-                              className="admin-btn admin-btn-danger admin-btn-sm"
-                              onClick={() => handleReviewDocument(doc.id, 'REJECT')}
-                            >
-                              Reject Doc
-                            </button>
-                          </>
-                        )}
+                        <button
+                          type="button"
+                          className={`admin-btn ${doc.status === 'APPROVED' ? 'admin-btn-secondary' : 'admin-btn-success'} admin-btn-sm`}
+                          onClick={() => handleReviewDocument(doc.id, 'APPROVE')}
+                          title="Mark document as approved"
+                        >
+                          {doc.status === 'APPROVED' ? 'Approved ✓' : 'Approve'}
+                        </button>
+
+                        <button
+                          type="button"
+                          className={`admin-btn ${doc.status === 'REJECTED' ? 'admin-btn-secondary' : 'admin-btn-danger'} admin-btn-sm`}
+                          onClick={() => handleReviewDocument(doc.id, 'REJECT')}
+                          title="Reject document with note"
+                        >
+                          {doc.status === 'REJECTED' ? 'Rejected ✕' : 'Reject'}
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -582,30 +602,46 @@ export const AdminProvidersPage: FC<{ onRefreshStats?: () => void }> = ({ onRefr
           >
             <div className="admin-modal-header">
               <div>
-                <h3 className="admin-modal-title">
-                  {previewingDoc.documentType.replace(/_/g, ' ')}
-                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                  <h3 className="admin-modal-title" style={{ margin: 0 }}>
+                    {previewingDoc.documentType.replace(/_/g, ' ')}
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '4px',
+                      backgroundColor: previewingDoc.documentName?.toLowerCase().endsWith('.pdf') ? '#FEF3C7' : '#EFF6FF',
+                      color: previewingDoc.documentName?.toLowerCase().endsWith('.pdf') ? '#92400E' : '#1D4ED8',
+                    }}
+                  >
+                    {previewingDoc.documentName?.toLowerCase().endsWith('.pdf') ? 'PDF DOCUMENT' : 'PNG IMAGE'}
+                  </span>
+                  <StatusBadge status={previewingDoc.status} />
+                </div>
                 <span style={{ fontSize: '0.8rem', color: '#64748B' }}>
                   {previewingDoc.documentName} • ID: {previewingDoc.id}
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <a
-                  href={`${getAccountDocumentUrl(previewingDoc.id)}&format=image`}
+                  href={`${getAccountDocumentUrl(previewingDoc.id)}&format=${previewingDoc.documentName?.toLowerCase().endsWith('.pdf') ? 'raw' : 'image'}`}
                   target="_blank"
                   rel="noreferrer"
                   className="admin-btn admin-btn-secondary admin-btn-sm"
-                  title="View pure document image"
+                  title="View standalone raw file"
                 >
-                  <Eye size={14} /> Direct Image
+                  <Eye size={14} /> {previewingDoc.documentName?.toLowerCase().endsWith('.pdf') ? 'Raw PDF' : 'Direct Image'}
                 </a>
                 <a
                   href={getAccountDocumentUrl(previewingDoc.id)}
                   target="_blank"
                   rel="noreferrer"
                   className="admin-btn admin-btn-secondary admin-btn-sm"
+                  title="Open full inspection in new window"
                 >
-                  <ExternalLink size={14} /> Open in New Tab
+                  <ExternalLink size={14} /> Full View
                 </a>
                 <button
                   className="admin-btn admin-btn-secondary admin-btn-sm"
@@ -637,28 +673,28 @@ export const AdminProvidersPage: FC<{ onRefreshStats?: () => void }> = ({ onRefr
               >
                 Close Preview
               </button>
-              {((previewingDoc.status as string) === 'PENDING' || (previewingDoc.status as string) === 'PENDING_REVIEW') && (
-                <>
-                  <button
-                    className="admin-btn admin-btn-danger"
-                    onClick={() => {
-                      handleReviewDocument(previewingDoc.id, 'REJECT');
-                      setPreviewingDoc(null);
-                    }}
-                  >
-                    Reject Document
-                  </button>
-                  <button
-                    className="admin-btn admin-btn-success"
-                    onClick={() => {
-                      handleReviewDocument(previewingDoc.id, 'APPROVE');
-                      setPreviewingDoc(null);
-                    }}
-                  >
-                    Approve Document
-                  </button>
-                </>
-              )}
+              <button
+                type="button"
+                className={`admin-btn ${previewingDoc.status === 'REJECTED' ? 'admin-btn-secondary' : 'admin-btn-danger'}`}
+                onClick={() => {
+                  handleReviewDocument(previewingDoc.id, 'REJECT');
+                  setPreviewingDoc(null);
+                }}
+                title="Reject document with note"
+              >
+                {previewingDoc.status === 'REJECTED' ? 'Rejected ✕' : 'Reject Document'}
+              </button>
+              <button
+                type="button"
+                className={`admin-btn ${previewingDoc.status === 'APPROVED' ? 'admin-btn-secondary' : 'admin-btn-success'}`}
+                onClick={() => {
+                  handleReviewDocument(previewingDoc.id, 'APPROVE');
+                  setPreviewingDoc(null);
+                }}
+                title="Approve document"
+              >
+                {previewingDoc.status === 'APPROVED' ? 'Approved ✓' : 'Approve Document'}
+              </button>
             </div>
           </div>
         </div>

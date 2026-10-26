@@ -1386,6 +1386,19 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
       return;
     }
 
+    // Client-side file validation strictly enforcing PNG or PDF
+    const fileName = docFile.name.toLowerCase();
+    const isAllowed = fileName.endsWith('.png') || fileName.endsWith('.pdf') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || docFile.type === 'image/png' || docFile.type === 'application/pdf' || docFile.type === 'image/jpeg';
+    if (!isAllowed) {
+      setUploadMessage({ type: 'error', text: 'Invalid file format. Documents must be submitted strictly as PNG or PDF.' });
+      return;
+    }
+
+    if (docFile.size > 10 * 1024 * 1024) {
+      setUploadMessage({ type: 'error', text: 'File size exceeds 10MB limit. Please upload a file smaller than 10MB.' });
+      return;
+    }
+
     try {
       setUploadingDoc(true);
       setUploadMessage(null);
@@ -1394,7 +1407,7 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
       formData.append('document', docFile);
 
       await uploadAccountDocumentApi(formData);
-      setUploadMessage({ type: 'success', text: 'Document uploaded successfully and queued for administrator review.' });
+      setUploadMessage({ type: 'success', text: 'Document submitted successfully as PNG/PDF and queued for administrator review.' });
       setDocFile(null);
       const fileInput = document.getElementById('provider-doc-file-input') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
@@ -1755,8 +1768,21 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
                       }}
                     >
                       <div>
-                        <div style={{ fontWeight: 600 }}>
+                        <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center' }}>
                           {doc.documentType.replace(/_/g, ' ')}
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              padding: '0.15rem 0.5rem',
+                              borderRadius: '4px',
+                              backgroundColor: doc.documentName?.toLowerCase().endsWith('.pdf') ? '#FEF3C7' : '#EFF6FF',
+                              color: doc.documentName?.toLowerCase().endsWith('.pdf') ? '#92400E' : '#1D4ED8',
+                              fontWeight: 700,
+                              marginLeft: '0.5rem',
+                            }}
+                          >
+                            {doc.documentName?.toLowerCase().endsWith('.pdf') ? 'PDF DOCUMENT' : 'PNG IMAGE'}
+                          </span>
                         </div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '0.2rem' }}>
                           File: {doc.documentName} • Uploaded {new Date(doc.createdAt).toLocaleDateString()}
@@ -1794,7 +1820,7 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
             {/* Document Upload Form */}
             <div className="panel-card">
               <div className="panel-header">
-                <h3 className="panel-title">Upload New Verification Document</h3>
+                <h3 className="panel-title">Upload Verification Document (PNG or PDF)</h3>
               </div>
               <form onSubmit={handleUploadDocument} style={{ maxWidth: '600px' }}>
                 {uploadMessage && (
@@ -1833,15 +1859,18 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
 
                 <div style={{ marginBottom: '1.25rem' }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                    Select File (PDF, PNG, JPG - max 10MB)
+                    Select Document File <span style={{ color: '#2563EB' }}>(Strictly PNG or PDF — Max 10MB)</span>
                   </label>
                   <input
                     id="provider-doc-file-input"
                     type="file"
-                    accept=".pdf,.png,.jpg,.jpeg"
+                    accept=".png,.pdf,.jpg,.jpeg,image/png,application/pdf,image/jpeg"
                     onChange={(e) => setDocFile(e.target.files ? e.target.files[0] : null)}
                     style={{ display: 'block', width: '100%', fontSize: '0.875rem' }}
                   />
+                  <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.25rem' }}>
+                    Please upload an official scan or clear image of your credential in PNG or PDF format.
+                  </div>
                 </div>
 
                 <button

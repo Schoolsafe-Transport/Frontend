@@ -432,6 +432,18 @@ export const AdminBusinessesPage: FC<{ onRefreshStats?: () => void }> = ({ onRef
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                        <span
+                          style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            padding: '0.1rem 0.45rem',
+                            borderRadius: '4px',
+                            backgroundColor: doc.documentName?.toLowerCase().endsWith('.pdf') ? '#FEF3C7' : '#EFF6FF',
+                            color: doc.documentName?.toLowerCase().endsWith('.pdf') ? '#92400E' : '#1D4ED8',
+                          }}
+                        >
+                          {doc.documentName?.toLowerCase().endsWith('.pdf') ? 'PDF' : 'PNG'}
+                        </span>
                         <StatusBadge status={doc.status} />
 
                         <button
@@ -453,22 +465,23 @@ export const AdminBusinessesPage: FC<{ onRefreshStats?: () => void }> = ({ onRef
                           <ExternalLink size={12} />
                         </a>
 
-                        {(doc.status === 'PENDING_REVIEW' || (doc.status as string) === 'PENDING') && (
-                          <>
-                            <button
-                              className="admin-btn admin-btn-success admin-btn-sm"
-                              onClick={() => handleReviewDocument(doc.id, 'APPROVE')}
-                            >
-                              Approve Doc
-                            </button>
-                            <button
-                              className="admin-btn admin-btn-danger admin-btn-sm"
-                              onClick={() => handleReviewDocument(doc.id, 'REJECT')}
-                            >
-                              Reject Doc
-                            </button>
-                          </>
-                        )}
+                        <button
+                          type="button"
+                          className={`admin-btn ${doc.status === 'APPROVED' ? 'admin-btn-secondary' : 'admin-btn-success'} admin-btn-sm`}
+                          onClick={() => handleReviewDocument(doc.id, 'APPROVE')}
+                          title="Mark document as approved"
+                        >
+                          {doc.status === 'APPROVED' ? 'Approved ✓' : 'Approve'}
+                        </button>
+
+                        <button
+                          type="button"
+                          className={`admin-btn ${doc.status === 'REJECTED' ? 'admin-btn-secondary' : 'admin-btn-danger'} admin-btn-sm`}
+                          onClick={() => handleReviewDocument(doc.id, 'REJECT')}
+                          title="Reject document with note"
+                        >
+                          {doc.status === 'REJECTED' ? 'Rejected ✕' : 'Reject'}
+                        </button>
                       </div>
                     </div>
                   ))}
