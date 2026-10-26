@@ -19,6 +19,39 @@ import {
 import { StatusBadge } from '../../components/admin/StatusBadge';
 import { RejectionModal } from '../../components/admin/RejectionModal';
 
+const isVideoMedia = (url?: string | null): boolean => {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return (
+    lower.endsWith('.mp4') ||
+    lower.endsWith('.webm') ||
+    lower.endsWith('.ogg') ||
+    lower.endsWith('.mov') ||
+    lower.startsWith('data:video/')
+  );
+};
+
+const isEmbedVideoUrl = (url?: string | null): boolean => {
+  if (!url) return false;
+  return url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com');
+};
+
+const getEmbedVideoUrl = (url: string): string => {
+  if (url.includes('youtube.com/watch?v=')) {
+    const videoId = url.split('watch?v=')[1]?.split('&')[0];
+    return `https://www.youtube-nocookie.com/embed/${videoId}`;
+  }
+  if (url.includes('youtu.be/')) {
+    const videoId = url.split('youtu.be/')[1]?.split('?')[0];
+    return `https://www.youtube-nocookie.com/embed/${videoId}`;
+  }
+  if (url.includes('vimeo.com/')) {
+    const videoId = url.split('vimeo.com/')[1]?.split('?')[0];
+    return `https://player.vimeo.com/video/${videoId}`;
+  }
+  return url;
+};
+
 export const AdminAdvertisementsPage: FC<{ onRefreshStats?: () => void }> = ({ onRefreshStats }) => {
   const [campaigns, setCampaigns] = useState<AdminCampaignRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -402,7 +435,7 @@ export const AdminAdvertisementsPage: FC<{ onRefreshStats?: () => void }> = ({ o
             </div>
 
             <div className="admin-modal-body">
-              {/* Banner Preview Box */}
+              {/* Media Creative Preview Box (Video or Image) */}
               <div
                 style={{
                   borderRadius: '12px',
@@ -411,13 +444,33 @@ export const AdminAdvertisementsPage: FC<{ onRefreshStats?: () => void }> = ({ o
                   backgroundColor: '#0F172A',
                   marginBottom: '1.25rem',
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                <img
-                  src={previewCampaign.bannerUrl}
-                  alt={previewCampaign.title}
-                  style={{ width: '100%', maxHeight: '280px', objectFit: 'contain', display: 'block' }}
-                />
+                {isVideoMedia(previewCampaign.bannerUrl) ? (
+                  <video
+                    src={previewCampaign.bannerUrl}
+                    controls
+                    playsInline
+                    style={{ width: '100%', maxHeight: '340px', display: 'block', backgroundColor: '#000000' }}
+                  />
+                ) : isEmbedVideoUrl(previewCampaign.bannerUrl) ? (
+                  <iframe
+                    src={getEmbedVideoUrl(previewCampaign.bannerUrl)}
+                    title={previewCampaign.title}
+                    style={{ width: '100%', height: '320px', border: 'none' }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <img
+                    src={previewCampaign.bannerUrl}
+                    alt={previewCampaign.title}
+                    style={{ width: '100%', maxHeight: '320px', objectFit: 'contain', display: 'block' }}
+                  />
+                )}
               </div>
 
               {/* Campaign Specifications */}

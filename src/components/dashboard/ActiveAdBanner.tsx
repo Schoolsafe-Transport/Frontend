@@ -44,6 +44,12 @@ export const ActiveAdBanner: FC<ActiveAdBannerProps> = ({ onFindTransportation }
     }
   };
 
+  const isVideoUrl = (url?: string | null): boolean => {
+    if (!url) return false;
+    const l = url.toLowerCase();
+    return l.endsWith('.mp4') || l.endsWith('.webm') || l.endsWith('.ogg') || l.startsWith('data:video/');
+  };
+
   const currentAd = ads.length > 0 ? ads[currentIndex] : null;
 
   const handleAdClick = (e: React.MouseEvent) => {
@@ -230,23 +236,42 @@ export const ActiveAdBanner: FC<ActiveAdBannerProps> = ({ onFindTransportation }
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1, minWidth: '260px' }}>
-        {/* Optional banner image */}
+        {/* Media creative: Video or Image */}
         {currentAd.bannerUrl && (
-          <img
-            src={currentAd.bannerUrl}
-            alt={currentAd.title}
-            style={{
-              width: '56px',
-              height: '42px',
-              borderRadius: '6px',
-              objectFit: 'cover',
-              border: '1px solid #E2E8F0',
-              flexShrink: 0,
-            }}
-            onError={(e) => {
-              (e.currentTarget as HTMLElement).style.display = 'none';
-            }}
-          />
+          isVideoUrl(currentAd.bannerUrl) ? (
+            <video
+              src={currentAd.bannerUrl}
+              autoPlay
+              muted
+              loop
+              playsInline
+              style={{
+                width: '64px',
+                height: '44px',
+                borderRadius: '6px',
+                objectFit: 'cover',
+                border: '1px solid #E2E8F0',
+                flexShrink: 0,
+                backgroundColor: '#000000',
+              }}
+            />
+          ) : (
+            <img
+              src={currentAd.bannerUrl}
+              alt={currentAd.title}
+              style={{
+                width: '56px',
+                height: '42px',
+                borderRadius: '6px',
+                objectFit: 'cover',
+                border: '1px solid #E2E8F0',
+                flexShrink: 0,
+              }}
+              onError={(e) => {
+                (e.currentTarget as HTMLElement).style.display = 'none';
+              }}
+            />
+          )
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>

@@ -328,14 +328,16 @@ const CreateCampaignModal: FC<{
       return;
     }
     if (!bannerUrl.trim()) {
-      setError('Banner image URL is required');
+      setError('Media creative URL (image or video) is required');
       return;
     }
-    try {
-      new URL(bannerUrl);
-    } catch {
-      setError('Banner URL must be a valid URL');
-      return;
+    if (!bannerUrl.startsWith('data:')) {
+      try {
+        new URL(bannerUrl);
+      } catch {
+        setError('Creative media URL must be a valid web address (http:// or https://)');
+        return;
+      }
     }
     if (targetUrl.trim()) {
       try {
@@ -445,17 +447,20 @@ const CreateCampaignModal: FC<{
 
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', color: '#374151' }}>
-              Banner Image URL *
+              Creative Media URL (Video or Image) *
             </label>
             <input
-              type="url"
+              type="text"
               value={bannerUrl}
               onChange={(e) => setBannerUrl(e.target.value)}
-              placeholder="https://example.com/banner.png"
+              placeholder="https://example.com/banner.png or .mp4, or YouTube video link"
               className="input"
               style={{ width: '100%' }}
               required
             />
+            <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '0.25rem' }}>
+              Accepts promotional images (.png, .jpg, .webp), direct video files (.mp4, .webm), or YouTube/Vimeo links. The Administrator must review and approve this creative before it goes live.
+            </div>
           </div>
 
           <div style={{ marginBottom: '1rem' }}>
