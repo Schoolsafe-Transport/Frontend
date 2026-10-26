@@ -36,6 +36,7 @@ export interface User {
   licenseNumber?: string | null;
   serviceArea?: string | null;
   registrationStep?: string | null;
+  latestVerificationCode?: string | null;
   createdAt: string;
   updatedAt: string;
 }

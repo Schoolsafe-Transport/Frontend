@@ -600,6 +600,11 @@ export const deleteAdminUserApi = async (userId: string) => {
   return response.data;
 };
 
+export const verifyAdminUserEmailApi = async (userId: string) => {
+  const response = await apiClient.patch(`/admin/users/${userId}/verify-email`);
+  return response.data.data;
+};
+
 export interface AdminPlatformStats {
   metrics?: {
     totalUsers: number;
@@ -1137,6 +1142,7 @@ export interface AdminUserRecord {
   status: string;
   isVerified: boolean;
   isEmailVerified: boolean;
+  latestVerificationCode?: string | null;
   businessName?: string | null;
   licenseNumber?: string | null;
   serviceArea?: string | null;

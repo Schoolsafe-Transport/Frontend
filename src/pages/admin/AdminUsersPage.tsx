@@ -15,6 +15,7 @@ import {
   getAdminUsersApi,
   updateAdminUserStatusApi,
   deleteAdminUserApi,
+  verifyAdminUserEmailApi,
   AdminUserRecord,
 } from '../../services/api';
 import { StatusBadge } from '../../components/admin/StatusBadge';
@@ -120,6 +121,28 @@ export const AdminUsersPage: FC = () => {
       setToastMessage({
         type: 'error',
         text: err?.response?.data?.message || 'Failed to delete user.',
+      });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleVerifyUserEmail = async (userId: string, email: string) => {
+    try {
+      setActionLoadingId(userId);
+      await verifyAdminUserEmailApi(userId);
+      setToastMessage({
+        type: 'success',
+        text: `Email for ${email} has been verified successfully.`,
+      });
+      await fetchUsers();
+      if (selectedUser?.id === userId) {
+        setSelectedUser((prev) => (prev ? { ...prev, isEmailVerified: true } : null));
+      }
+    } catch (err: any) {
+      setToastMessage({
+        type: 'error',
+        text: err?.response?.data?.message || 'Failed to verify user email.',
       });
     } finally {
       setActionLoadingId(null);
@@ -338,13 +361,29 @@ export const AdminUsersPage: FC = () => {
                         <span style={{ fontSize: '0.72rem', color: u.isEmailVerified ? '#059669' : '#D97706' }}>
                           {u.isEmailVerified ? '✓ Email Verified' : '○ Email Pending'}
                         </span>
+                        {!u.isEmailVerified && u.latestVerificationCode && (
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              color: '#1D4ED8',
+                              fontFamily: 'monospace',
+                              backgroundColor: '#EFF6FF',
+                              padding: '0.1rem 0.35rem',
+                              borderRadius: '4px',
+                              border: '1px solid #DBEAFE',
+                            }}
+                          >
+                            Code: {u.latestVerificationCode}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td style={{ whiteSpace: 'nowrap', fontSize: '0.8rem', color: '#64748B' }}>
                       {new Date(u.createdAt).toLocaleDateString()}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
+                      <div style={{ display: 'inline-flex', gap: '0.4rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                         <button
                           className="admin-btn admin-btn-secondary admin-btn-sm"
                           onClick={() => setSelectedUser(u)}
@@ -352,6 +391,22 @@ export const AdminUsersPage: FC = () => {
                         >
                           <Eye size={13} /> Details
                         </button>
+
+                        {!u.isEmailVerified && (
+                          <button
+                            className="admin-btn admin-btn-sm"
+                            disabled={actionLoadingId === u.id}
+                            onClick={() => handleVerifyUserEmail(u.id, u.email)}
+                            title="Manually verify email address"
+                            style={{
+                              backgroundColor: '#EFF6FF',
+                              color: '#1D4ED8',
+                              border: '1px solid #BFDBFE',
+                            }}
+                          >
+                            <CheckCircle2 size={13} /> Verify Email
+                          </button>
+                        )}
 
                         {u.status !== 'ACTIVE' && (
                           <button
@@ -481,6 +536,40 @@ export const AdminUsersPage: FC = () => {
                   <span style={{ fontSize: '0.75rem', color: '#64748B', display: 'block' }}>Current Status</span>
                   <div style={{ marginTop: '0.2rem' }}>
                     <StatusBadge status={selectedUser.status} />
+                  </div>
+                </div>
+
+                <div style={{ padding: '0.85rem', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B', display: 'block' }}>Email Verification</span>
+                  <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: selectedUser.isEmailVerified ? '#059669' : '#D97706' }}>
+                      {selectedUser.isEmailVerified ? '✓ Verified' : '○ Pending'}
+                    </span>
+                    {!selectedUser.isEmailVerified && selectedUser.latestVerificationCode && (
+                      <span
+                        style={{
+                          fontSize: '0.85rem',
+                          fontWeight: 800,
+                          color: '#1D4ED8',
+                          fontFamily: 'monospace',
+                          backgroundColor: '#DBEAFE',
+                          padding: '0.15rem 0.5rem',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        Code: {selectedUser.latestVerificationCode}
+                      </span>
+                    )}
+                    {!selectedUser.isEmailVerified && (
+                      <button
+                        className="admin-btn admin-btn-sm"
+                        onClick={() => handleVerifyUserEmail(selectedUser.id, selectedUser.email)}
+                        disabled={actionLoadingId === selectedUser.id}
+                        style={{ backgroundColor: '#DBEAFE', color: '#1D4ED8', border: '1px solid #BFDBFE', padding: '0.2rem 0.5rem' }}
+                      >
+                        <CheckCircle2 size={12} /> Verify Now
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

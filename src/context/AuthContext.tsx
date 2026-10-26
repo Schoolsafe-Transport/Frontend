@@ -98,8 +98,12 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       const res = await registerApi(payload);
       localStorage.setItem('schoolsafe_access_token', res.tokens.accessToken);
       localStorage.setItem('schoolsafe_refresh_token', res.tokens.refreshToken);
-      setUser(res.user);
-      return res.user;
+      const userWithCode = {
+        ...res.user,
+        latestVerificationCode: (res as any).sixDigitCode || (res as any).data?.sixDigitCode || res.user?.latestVerificationCode,
+      };
+      setUser(userWithCode as any);
+      return userWithCode as any;
     } catch (err: any) {
       const msg = extractErrorMessage(err, 'Registration failed. Please check the entered data.');
       setError(msg);

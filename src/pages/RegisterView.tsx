@@ -86,6 +86,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
   const [resendCooldown, setResendCooldown] = useState(0);
   const [emailNotice, setEmailNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [isEmailVerifiedLocally, setIsEmailVerifiedLocally] = useState(false);
+  const [serverVerificationCode, setServerVerificationCode] = useState<string | null>(null);
 
 
   // Step 4A: Parent Information
@@ -217,7 +218,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
 
     try {
       setSubmittingStep1(true);
-      await register({
+      const regUser: any = await register({
         firstName: trimmedFirst,
         lastName: trimmedLast,
         email: trimmedEmail,
@@ -226,6 +227,9 @@ export const RegisterView: FC<RegisterViewProps> = ({
         role,
       });
 
+      if (regUser?.latestVerificationCode) {
+        setServerVerificationCode(regUser.latestVerificationCode);
+      }
 
       setEmailNotice({
         type: 'info',
@@ -300,7 +304,10 @@ export const RegisterView: FC<RegisterViewProps> = ({
       setResendingEmail(true);
       setEmailNotice(null);
       const targetEmail = user?.email || email.trim();
-      const res = await resendVerificationEmailApi(targetEmail);
+      const res: any = await resendVerificationEmailApi(targetEmail);
+      if (res?.sixDigitCode) {
+        setServerVerificationCode(res.sixDigitCode);
+      }
       if (res.delivered === false) {
         setEmailNotice({
           type: 'info',
@@ -892,7 +899,34 @@ export const RegisterView: FC<RegisterViewProps> = ({
             <>
               {/* 6-Digit Code Entry (Primary) */}
               <form onSubmit={handleVerifyEmailCode} className="auth-form" style={{ marginTop: 0 }}>
-
+                {(serverVerificationCode || (user as any)?.latestVerificationCode) && (
+                  <div
+                    style={{
+                      padding: '1.25rem',
+                      backgroundColor: '#EFF6FF',
+                      border: '2px solid #3B82F6',
+                      borderRadius: 'var(--radius-md)',
+                      textAlign: 'center',
+                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.12)',
+                      marginBottom: '1rem',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E40AF', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                      Your 6-Digit Verification Code
+                    </div>
+                    <div style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '8px', color: '#1D4ED8', fontFamily: 'monospace', margin: '0.4rem 0' }}>
+                      {serverVerificationCode || (user as any)?.latestVerificationCode}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => setEmailCodeInput(serverVerificationCode || (user as any)?.latestVerificationCode || '')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem' }}
+                    >
+                      <CheckCircle2 size={15} /> Auto-Fill Verification Code
+                    </button>
+                  </div>
+                )}
 
                 <div className="form-group" style={{ marginBottom: '1.25rem', textAlign: 'center' }}>
                   <label htmlFor="email-code-input" style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-primary)' }}>
