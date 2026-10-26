@@ -595,6 +595,11 @@ export const updateAdminUserStatusApi = async (userId: string, status: string) =
   return response.data.data;
 };
 
+export const deleteAdminUserApi = async (userId: string) => {
+  const response = await apiClient.delete(`/admin/users/${userId}`);
+  return response.data;
+};
+
 export interface AdminPlatformStats {
   metrics?: {
     totalUsers: number;

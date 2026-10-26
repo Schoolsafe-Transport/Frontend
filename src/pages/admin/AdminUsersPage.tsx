@@ -8,11 +8,13 @@ import {
   Loader2,
   RefreshCw,
   Eye,
+  Trash2,
   X,
 } from 'lucide-react';
 import {
   getAdminUsersApi,
   updateAdminUserStatusApi,
+  deleteAdminUserApi,
   AdminUserRecord,
 } from '../../services/api';
 import { StatusBadge } from '../../components/admin/StatusBadge';
@@ -93,6 +95,31 @@ export const AdminUsersPage: FC = () => {
       setToastMessage({
         type: 'error',
         text: err?.response?.data?.message || 'Failed to update user status.',
+      });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, email: string) => {
+    if (!window.confirm(`Are you sure you want to permanently delete user "${email}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      setActionLoadingId(userId);
+      await deleteAdminUserApi(userId);
+      setToastMessage({
+        type: 'success',
+        text: `User ${email} has been permanently deleted.`,
+      });
+      await fetchUsers();
+      if (selectedUser?.id === userId) {
+        setSelectedUser(null);
+      }
+    } catch (err: any) {
+      setToastMessage({
+        type: 'error',
+        text: err?.response?.data?.message || 'Failed to delete user.',
       });
     } finally {
       setActionLoadingId(null);
@@ -347,6 +374,22 @@ export const AdminUsersPage: FC = () => {
                             Suspend
                           </button>
                         )}
+
+                        {u.role !== 'ADMIN' && u.email !== 'rachelberhane716@gmail.com' && (
+                          <button
+                            className="admin-btn admin-btn-sm"
+                            disabled={actionLoadingId === u.id}
+                            onClick={() => handleDeleteUser(u.id, u.email)}
+                            title="Permanently Delete User"
+                            style={{
+                              backgroundColor: '#FEE2E2',
+                              color: '#DC2626',
+                              border: '1px solid #FECACA',
+                            }}
+                          >
+                            <Trash2 size={13} /> Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -493,6 +536,17 @@ export const AdminUsersPage: FC = () => {
                   disabled={actionLoadingId === selectedUser.id}
                 >
                   Suspend Account
+                </button>
+              )}
+
+              {selectedUser.role !== 'ADMIN' && selectedUser.email !== 'rachelberhane716@gmail.com' && (
+                <button
+                  className="admin-btn admin-btn-danger"
+                  onClick={() => handleDeleteUser(selectedUser.id, selectedUser.email)}
+                  disabled={actionLoadingId === selectedUser.id}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Trash2 size={15} /> Delete Account
                 </button>
               )}
             </div>
