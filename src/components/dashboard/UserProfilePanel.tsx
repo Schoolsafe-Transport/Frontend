@@ -1,11 +1,13 @@
 import { useState, FC } from 'react';
 import { User } from '../../types/auth';
+import { useAuth } from '../../context/AuthContext';
 import {
   ShieldCheck,
   CheckCircle2,
   Lock,
   User as UserIcon,
   Loader2,
+  LogOut,
 } from 'lucide-react';
 import { updateProfileApi, changePasswordApi } from '../../services/api';
 import { FaydaVerificationModal } from './FaydaVerificationModal';
@@ -16,6 +18,7 @@ interface ProfilePanelProps {
 }
 
 export const UserProfilePanel: FC<ProfilePanelProps> = ({ user, onUserUpdated }) => {
+  const { logout } = useAuth();
   const [isFaydaModalOpen, setIsFaydaModalOpen] = useState(false);
 
   // Edit Profile State
@@ -304,6 +307,36 @@ export const UserProfilePanel: FC<ProfilePanelProps> = ({ user, onUserUpdated })
               {passwordLoading ? <Loader2 size={16} className="spin" /> : 'Update Password'}
             </button>
           </form>
+        </div>
+      </div>
+
+      {/* 3. Account Session & Sign Out */}
+      <div className="panel-card" style={{ padding: '1.5rem', backgroundColor: '#FEF2F2', border: '1.5px solid #FECACA' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, color: '#991B1B', fontSize: '1rem' }}>
+              <LogOut size={18} />
+              <span>Account Session & Sign Out</span>
+            </div>
+            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.825rem', color: '#7F1D1D' }}>
+              Logged in as <strong>{user.email}</strong> ({user.role.replace(/_/g, ' ')})
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            className="btn btn-danger"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.65rem 1.25rem',
+              fontWeight: 700,
+              boxShadow: '0 2px 4px rgba(220, 38, 38, 0.2)',
+            }}
+          >
+            <LogOut size={16} /> Sign Out of SchoolSafe
+          </button>
         </div>
       </div>
 

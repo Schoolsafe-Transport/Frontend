@@ -20,6 +20,7 @@ import {
   saveOnboardingApi,
   uploadAccountDocumentApi,
   createStudentApi,
+  createVehicleApi,
 } from '../services/api';
 
 interface RegisterViewProps {
@@ -421,13 +422,28 @@ export const RegisterView: FC<RegisterViewProps> = ({
           await uploadAccountDocumentApi(form);
         }
 
-        // Upload insurance document if provided
+        // Upload passenger insurance document if provided
         if (providerInsuranceDocFile) {
           const form = new FormData();
           form.append('document', providerInsuranceDocFile);
           form.append('documentType', 'INSURANCE');
-          form.append('documentName', 'Commercial Passenger Insurance');
+          form.append('documentName', `Passenger Insurance (${providerVehiclePlate || 'Transport'})`);
           await uploadAccountDocumentApi(form);
+        }
+
+        // Create primary vehicle record in database if plate was provided
+        if (providerVehiclePlate.trim()) {
+          try {
+            await createVehicleApi({
+              make: 'Toyota',
+              model: 'HiAce Minibus',
+              year: new Date().getFullYear(),
+              plateNumber: providerVehiclePlate.trim().toUpperCase(),
+              capacity: Number(providerVehicleCapacity) || 14,
+            });
+          } catch (vehErr) {
+            console.warn('[RegisterView] Vehicle auto-registration notice:', vehErr);
+          }
         }
 
         setStep4Success('Provider application and verification documents submitted!');

@@ -95,24 +95,24 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
 
   return (
     <div className="dashboard-layout">
-      {/* Universal Top Header Strip */}
-      <div className="dashboard-nav-strip">
-        <div className="dashboard-nav-inner" style={{ height: '76px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      {/* Universal Top Header Strip (Non-sticky, fully responsive) */}
+      <div className="dashboard-header-strip">
+        <div className="dashboard-header-inner">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: '220px' }}>
             <img
               src="/logo-shield.png"
               alt="SchoolSafe"
               style={{
-                width: '42px',
-                height: '42px',
+                width: '38px',
+                height: '38px',
                 objectFit: 'contain',
-                marginRight: '0.25rem',
+                flexShrink: 0,
               }}
             />
             <div
               style={{
-                width: '44px',
-                height: '44px',
+                width: '40px',
+                height: '40px',
                 borderRadius: '10px',
                 backgroundColor: 'var(--color-primary)',
                 color: '#FFFFFF',
@@ -120,18 +120,19 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 700,
-                fontSize: '1.1rem',
+                fontSize: '1rem',
+                flexShrink: 0,
               }}
             >
               {user.firstName[0]}
               {user.lastName[0]}
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-                <h3 style={{ fontSize: '1.15rem', color: 'var(--color-primary)' }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                <h3 style={{ fontSize: '1.05rem', color: 'var(--color-primary)', margin: 0, fontWeight: 700 }}>
                   {actorType === 'PARENT' ? `Good morning, ${user.firstName}` : `Welcome back, ${user.firstName}`}
                 </h3>
-                <span className="role-pill">
+                <span className="role-pill" style={{ fontSize: '0.7rem', padding: '0.15rem 0.45rem' }}>
                   {actorDisplayName}
                 </span>
 
@@ -142,15 +143,15 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.25rem',
-                      fontSize: '0.75rem',
+                      fontSize: '0.7rem',
                       fontWeight: 700,
                       color: 'var(--color-success)',
                       backgroundColor: 'var(--color-success-light)',
-                      padding: '0.2rem 0.5rem',
+                      padding: '0.15rem 0.45rem',
                       borderRadius: 'var(--radius-full)',
                     }}
                   >
-                    <CheckCircle2 size={12} /> Email Verified
+                    <CheckCircle2 size={11} /> Email Verified
                   </span>
                 ) : (
                   <span
@@ -158,28 +159,45 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.25rem',
-                      fontSize: '0.75rem',
+                      fontSize: '0.7rem',
                       fontWeight: 700,
                       color: '#B45309',
                       backgroundColor: '#FEF3C7',
-                      padding: '0.2rem 0.6rem',
+                      padding: '0.15rem 0.5rem',
                       borderRadius: 'var(--radius-full)',
                       border: '1px solid #FCD34D',
                     }}
                   >
-                    <Clock size={12} /> Email Pending
+                    <Clock size={11} /> Email Pending
                   </span>
                 )}
-
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginTop: '0.15rem', wordBreak: 'break-all' }}>
                 {user.email}
               </div>
             </div>
           </div>
 
-          <button onClick={logout} className="btn btn-secondary btn-sm" style={{ gap: '0.4rem' }}>
-            <LogOut size={14} /> Sign Out
+          {/* Prominent, Responsive Sign Out Button */}
+          <button
+            onClick={logout}
+            className="btn btn-secondary btn-sm"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              fontWeight: 600,
+              flexShrink: 0,
+              padding: '0.45rem 0.85rem',
+              borderRadius: '8px',
+              border: '1.5px solid var(--color-border)',
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+            }}
+            title="Sign out of your SchoolSafe account"
+          >
+            <LogOut size={15} style={{ color: '#DC2626' }} />
+            <span style={{ fontWeight: 600 }}>Sign Out</span>
           </button>
         </div>
       </div>
