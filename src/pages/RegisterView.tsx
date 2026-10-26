@@ -229,11 +229,22 @@ export const RegisterView: FC<RegisterViewProps> = ({
 
       if (regUser?.latestVerificationCode) {
         setServerVerificationCode(regUser.latestVerificationCode);
+
+        // Immediate email dispatch via Vercel serverless function
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: trimmedEmail,
+            recipientName: trimmedFirst,
+            sixDigitCode: regUser.latestVerificationCode,
+          }),
+        }).catch((err) => console.warn('Email dispatch notice:', err.message));
       }
 
       setEmailNotice({
         type: 'info',
-        text: `A 6-digit verification code has been dispatched. Enter the code below to verify your email.`,
+        text: `A 6-digit verification code has been dispatched to ${trimmedEmail}. Enter the code below to verify your email.`,
       });
       setCurrentStep(2);
     } catch (err: any) {
@@ -307,6 +318,16 @@ export const RegisterView: FC<RegisterViewProps> = ({
       const res: any = await resendVerificationEmailApi(targetEmail);
       if (res?.sixDigitCode) {
         setServerVerificationCode(res.sixDigitCode);
+
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: targetEmail,
+            recipientName: user?.firstName || firstName || 'Member',
+            sixDigitCode: res.sixDigitCode,
+          }),
+        }).catch((err) => console.warn('Resend email dispatch notice:', err.message));
       }
       if (res.delivered === false) {
         setEmailNotice({
