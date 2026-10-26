@@ -1638,4 +1638,35 @@ p {
     padding: 0.65rem 0.75rem;
     font-size: 0.825rem;
   }
+
+  /* Global Mobile Responsive Enhancements */
+  .data-table-wrapper, .table-container, .table-responsive, .admin-table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-header {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .admin-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .admin-main {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .modal-dialog, .modal-content {
+    width: 100% !important;
+    max-width: 96vw !important;
+    margin: 0 auto;
+    padding: 1rem !important;
+  }
 }
+

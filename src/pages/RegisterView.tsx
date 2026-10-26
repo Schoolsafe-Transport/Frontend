@@ -312,30 +312,33 @@ export const RegisterView: FC<RegisterViewProps> = ({
     try {
       setResendingEmail(true);
       setEmailNotice(null);
-      const targetEmail = user?.email || email.trim();
-      const res: any = await resendVerificationEmailApi(targetEmail);
-      if (res?.sixDigitCode) {
-        fetch('/api/send-email', {
+      const targetEmail = (user?.email || email).trim().toLowerCase();
+      let code: string | undefined = user?.latestVerificationCode || undefined;
+
+      try {
+        const res: any = await resendVerificationEmailApi(targetEmail);
+        code = res?.sixDigitCode || res?.data?.sixDigitCode || code;
+      } catch (apiErr: any) {
+        code = apiErr.response?.data?.sixDigitCode || code;
+      }
+
+      // Direct Vercel HTTPS relay dispatch to guarantee primary inbox delivery
+      if (code) {
+        await fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: targetEmail,
             recipientName: user?.firstName || firstName || 'Member',
-            sixDigitCode: res.sixDigitCode,
+            sixDigitCode: code,
           }),
         }).catch((err) => console.warn('Resend email dispatch notice:', err.message));
       }
-      if (res.delivered === false) {
-        setEmailNotice({
-          type: 'info',
-          text: res.message || 'Could not dispatch verification email. Please check your email address and try again.',
-        });
-      } else {
-        setEmailNotice({
-          type: 'success',
-          text: res.message || 'A fresh 6-digit verification code has been dispatched to your email address.',
-        });
-      }
+
+      setEmailNotice({
+        type: 'success',
+        text: `A fresh 6-digit verification code has been sent to ${targetEmail}. Please check your inbox (and Spam folder).`,
+      });
       setResendCooldown(60);
     } catch (err: any) {
       setEmailNotice({

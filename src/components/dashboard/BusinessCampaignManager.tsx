@@ -14,6 +14,8 @@ import {
   FileText,
   TrendingUp,
   CheckCircle2,
+  UploadCloud,
+  Link2,
 } from 'lucide-react';
 import {
   getMyAdCampaignsApi,
@@ -316,8 +318,36 @@ const CreateCampaignModal: FC<{
   const [targetUrl, setTargetUrl] = useState('');
   const [packageId, setPackageId] = useState('');
   const [placement, setPlacement] = useState('DASHBOARD_BANNER');
+  const [mediaMode, setMediaMode] = useState<'UPLOAD' | 'URL'>('UPLOAD');
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      setError('Media file is too large. Please select an image or video under 20MB.');
+      return;
+    }
+
+    setError(null);
+    setUploadedFileName(`${file.name} (${(file.size / 1024).toFixed(0)} KB)`);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setBannerUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const isVideoMedia = (url: string) => {
+    const l = url.toLowerCase();
+    return l.startsWith('data:video/') || l.endsWith('.mp4') || l.endsWith('.webm') || l.endsWith('.ogg');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -328,7 +358,7 @@ const CreateCampaignModal: FC<{
       return;
     }
     if (!bannerUrl.trim()) {
-      setError('Media creative URL (image or video) is required');
+      setError('Media creative (image or video) is required');
       return;
     }
     if (!bannerUrl.startsWith('data:')) {
@@ -378,12 +408,12 @@ const CreateCampaignModal: FC<{
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(15, 23, 42, 0.7)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
-        padding: '1rem',
+        padding: '0.75rem',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -393,14 +423,14 @@ const CreateCampaignModal: FC<{
           borderRadius: '16px',
           width: '100%',
           maxWidth: '560px',
-          maxHeight: '90vh',
-          overflow: 'auto',
+          maxHeight: '94vh',
+          overflowY: 'auto',
           boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid #E2E8F0' }}>
-          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
-            <Plus size={18} style={{ verticalAlign: 'text-bottom', marginRight: '0.4rem' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.15rem 1.25rem', borderBottom: '1px solid #E2E8F0', position: 'sticky', top: 0, backgroundColor: '#FFFFFF', zIndex: 10 }}>
+          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#1E293B' }}>
+            <Plus size={18} style={{ verticalAlign: 'text-bottom', marginRight: '0.4rem', color: 'var(--color-accent)' }} />
             Create New Campaign
           </h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: '#64748B' }}>
@@ -408,10 +438,10 @@ const CreateCampaignModal: FC<{
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: '1.5rem' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '1.25rem' }}>
           {error && (
             <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', padding: '0.75rem', marginBottom: '1rem', color: '#991B1B', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <AlertCircle size={14} /> {error}
+              <AlertCircle size={15} style={{ flexShrink: 0 }} /> {error}
             </div>
           )}
 
@@ -440,27 +470,151 @@ const CreateCampaignModal: FC<{
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description of your campaign offer"
               className="input"
-              style={{ width: '100%', minHeight: '70px', resize: 'vertical' }}
-              rows={3}
+              style={{ width: '100%', minHeight: '65px', resize: 'vertical' }}
+              rows={2}
             />
           </div>
 
+          {/* Media Source Mode Tabs (Upload vs URL) */}
           <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', color: '#374151' }}>
-              Creative Media URL (Video or Image) *
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.45rem', color: '#374151' }}>
+              Creative Media (Video or Image) *
             </label>
-            <input
-              type="text"
-              value={bannerUrl}
-              onChange={(e) => setBannerUrl(e.target.value)}
-              placeholder="https://example.com/banner.png or .mp4, or YouTube video link"
-              className="input"
-              style={{ width: '100%' }}
-              required
-            />
-            <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '0.25rem' }}>
-              Accepts promotional images (.png, .jpg, .webp), direct video files (.mp4, .webm), or YouTube/Vimeo links. The Administrator must review and approve this creative before it goes live.
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.65rem' }}>
+              <button
+                type="button"
+                onClick={() => setMediaMode('UPLOAD')}
+                style={{
+                  flex: 1,
+                  padding: '0.45rem 0.65rem',
+                  borderRadius: '6px',
+                  border: mediaMode === 'UPLOAD' ? '1.5px solid var(--color-accent)' : '1px solid #CBD5E1',
+                  backgroundColor: mediaMode === 'UPLOAD' ? 'var(--color-accent-light)' : '#F8FAFC',
+                  color: mediaMode === 'UPLOAD' ? 'var(--color-accent)' : '#475569',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.35rem',
+                  cursor: 'pointer',
+                }}
+              >
+                <UploadCloud size={14} /> Upload File
+              </button>
+              <button
+                type="button"
+                onClick={() => setMediaMode('URL')}
+                style={{
+                  flex: 1,
+                  padding: '0.45rem 0.65rem',
+                  borderRadius: '6px',
+                  border: mediaMode === 'URL' ? '1.5px solid var(--color-accent)' : '1px solid #CBD5E1',
+                  backgroundColor: mediaMode === 'URL' ? 'var(--color-accent-light)' : '#F8FAFC',
+                  color: mediaMode === 'URL' ? 'var(--color-accent)' : '#475569',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.35rem',
+                  cursor: 'pointer',
+                }}
+              >
+                <Link2 size={14} /> Media Web Link
+              </button>
             </div>
+
+            {mediaMode === 'UPLOAD' ? (
+              <div>
+                <label
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1.25rem 1rem',
+                    border: '1.5px dashed #CBD5E1',
+                    borderRadius: '8px',
+                    backgroundColor: '#F8FAFC',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <UploadCloud size={28} style={{ color: 'var(--color-accent)', marginBottom: '0.35rem' }} />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                    Tap to Choose Image or Video File
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '0.15rem' }}>
+                    PNG, JPG, WEBP or MP4, WEBM (Max 20MB)
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,video/mp4,video/webm"
+                    onChange={handleFileSelect}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+                {uploadedFileName && (
+                  <div style={{ fontSize: '0.75rem', color: '#16A34A', fontWeight: 600, marginTop: '0.35rem' }}>
+                    ✓ Selected: {uploadedFileName}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <input
+                  type="text"
+                  value={bannerUrl}
+                  onChange={(e) => setBannerUrl(e.target.value)}
+                  placeholder="https://example.com/banner.png or .mp4, or YouTube video link"
+                  className="input"
+                  style={{ width: '100%' }}
+                />
+                <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '0.25rem' }}>
+                  Accepts direct image/video links, YouTube, or Vimeo links.
+                </div>
+              </div>
+            )}
+
+            {/* Live Media Preview */}
+            {bannerUrl && (
+              <div style={{ marginTop: '0.75rem', padding: '0.75rem', backgroundColor: '#F1F5F9', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
+                    Creative Live Preview
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setBannerUrl(''); setUploadedFileName(null); }}
+                    style={{ background: 'none', border: 'none', color: '#DC2626', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    Clear Media
+                  </button>
+                </div>
+                {isVideoMedia(bannerUrl) ? (
+                  <video
+                    src={bannerUrl}
+                    controls
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    style={{ width: '100%', maxHeight: '160px', borderRadius: '6px', backgroundColor: '#000000', objectFit: 'contain' }}
+                  />
+                ) : (
+                  <img
+                    src={bannerUrl}
+                    alt="Creative Preview"
+                    style={{ width: '100%', maxHeight: '160px', borderRadius: '6px', objectFit: 'contain', backgroundColor: '#FFFFFF' }}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{ marginBottom: '1rem' }}>
@@ -480,7 +634,8 @@ const CreateCampaignModal: FC<{
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          {/* Responsive Placement & Package Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem', marginBottom: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem', color: '#374151' }}>
                 Placement
@@ -516,15 +671,15 @@ const CreateCampaignModal: FC<{
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid #F1F5F9' }}>
-            <button type="button" onClick={onClose} className="btn btn-secondary" disabled={submitting}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.65rem', borderTop: '1px solid #F1F5F9', flexWrap: 'wrap' }}>
+            <button type="button" onClick={onClose} className="btn btn-secondary" disabled={submitting} style={{ minWidth: '100px' }}>
               Cancel
             </button>
             <button
               type="submit"
               className="btn btn-primary"
               disabled={submitting}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', minWidth: '160px', justifyContent: 'center' }}
             >
               {submitting ? (
                 <>

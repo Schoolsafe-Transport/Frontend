@@ -47,7 +47,7 @@ export default async function handler(req, res) {
       socketTimeout: 20000,
     });
 
-    const emailSubject = subject || 'Verify your SchoolSafe email address';
+    const emailSubject = subject || (sixDigitCode ? `Your SchoolSafe verification code is ${sixDigitCode}` : 'Verify your SchoolSafe email address');
     const emailText =
       text ||
       `Welcome to SchoolSafe!\n\nYour 6-digit verification code is: ${sixDigitCode || ''}\n\nVerify online: ${
