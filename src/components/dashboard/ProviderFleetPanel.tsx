@@ -6,6 +6,7 @@ import {
   Trash2,
   X,
   ShieldAlert,
+  FileCheck,
 } from 'lucide-react';
 import {
   getVehiclesApi,
@@ -13,7 +14,10 @@ import {
   deleteVehicleApi,
 } from '../../services/api';
 
-export const ProviderFleetPanel: FC<{ user: any }> = () => {
+export const ProviderFleetPanel: FC<{
+  user: any;
+  onNavigateTab?: (tab: 'Verification' | 'Routes') => void;
+}> = ({ onNavigateTab }) => {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -95,16 +99,27 @@ export const ProviderFleetPanel: FC<{ user: any }> = () => {
             Manage registered commercial vehicles, seating capacities, and transport safety compliance
           </p>
         </div>
-        <button
-          className="btn btn-primary btn-sm"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-          onClick={() => {
-            setError(null);
-            setShowAddModal(true);
-          }}
-        >
-          <Plus size={16} /> Register New Vehicle
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {onNavigateTab && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => onNavigateTab('Verification')}
+              title="Upload vehicle registration (libre), inspection, and insurance documents"
+            >
+              <FileCheck size={15} /> Upload Inspection Docs
+            </button>
+          )}
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+            onClick={() => {
+              setError(null);
+              setShowAddModal(true);
+            }}
+          >
+            <Plus size={16} /> Register New Vehicle
+          </button>
+        </div>
       </div>
 
       {success && (

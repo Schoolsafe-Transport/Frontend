@@ -16,11 +16,15 @@ export const apiClient = axios.create({
   },
 });
 
-// Attach Authorization Bearer header automatically
+// Attach Authorization Bearer header automatically and properly handle FormData
 apiClient.interceptors.request.use((config: any) => {
   const token = localStorage.getItem('schoolsafe_access_token');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  // When payload is FormData, remove Content-Type so Axios & browser set multipart boundary
+  if (config.data instanceof FormData && config.headers) {
+    delete config.headers['Content-Type'];
   }
   return config;
 });
@@ -833,11 +837,10 @@ export interface PaymentRecord {
 }
 
 export const uploadPaymentReceiptApi = async (agreementId: string, formData: FormData) => {
-  const response = await apiClient.post(`/transportation/agreements/${agreementId}/payments/upload-receipt`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await apiClient.post(
+    `/transportation/agreements/${agreementId}/payments/upload-receipt`,
+    formData
+  );
   return response.data.data;
 };
 
@@ -1013,11 +1016,7 @@ export const saveOnboardingApi = async (payload: {
 };
 
 export const uploadAccountDocumentApi = async (formData: FormData): Promise<AccountDocument> => {
-  const response = await apiClient.post('/auth/documents/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const response = await apiClient.post('/auth/documents/upload', formData);
   return response.data.data;
 };
 

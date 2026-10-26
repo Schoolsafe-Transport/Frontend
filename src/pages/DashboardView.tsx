@@ -1321,11 +1321,26 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
         getMyDocumentsApi(),
       ]);
 
-      if (vRes.status === 'fulfilled') setVehicles(vRes.value.vehicles || []);
-      if (rRes.status === 'fulfilled') setRoutes(rRes.value.routes || []);
-      if (reqRes.status === 'fulfilled') setRequests(reqRes.value.requests || []);
-      if (tRes.status === 'fulfilled') setTrips(tRes.value.trips || []);
-      if (docRes.status === 'fulfilled') setDocuments(docRes.value || []);
+      if (vRes.status === 'fulfilled') {
+        const val = vRes.value;
+        setVehicles(Array.isArray(val) ? val : val?.vehicles || []);
+      }
+      if (rRes.status === 'fulfilled') {
+        const val = rRes.value;
+        setRoutes(Array.isArray(val) ? val : val?.routes || []);
+      }
+      if (reqRes.status === 'fulfilled') {
+        const val = reqRes.value;
+        setRequests(Array.isArray(val) ? val : val?.requests || []);
+      }
+      if (tRes.status === 'fulfilled') {
+        const val = tRes.value;
+        setTrips(Array.isArray(val) ? val : val?.trips || []);
+      }
+      if (docRes.status === 'fulfilled') {
+        const val = docRes.value;
+        setDocuments(Array.isArray(val) ? val : []);
+      }
     } catch (err) {
       console.error('[ProviderDashboard] Error loading data:', err);
     } finally {
@@ -1470,9 +1485,14 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
           </div>
         )}
 
-        {/* Real Overview Stats */}
+        {/* Real Overview Stats - Clickable to navigate tabs */}
         <div className="stats-grid">
-          <div className="stat-card">
+          <div
+            className="stat-card"
+            onClick={() => setActiveTab('Fleet')}
+            style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+            title="Click to view and manage Fleet Vehicles"
+          >
             <div className="stat-header">
               <span>Fleet</span>
               <Car size={18} style={{ color: 'var(--color-primary)' }} />
@@ -1481,35 +1501,50 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
             <div className="stat-subtext">
               {vehicles.length > 0
                 ? vehicles.map((v) => `${v.make} ${v.model}`).slice(0, 2).join(', ')
-                : 'No vehicles registered yet'}
+                : 'Manage vehicle fleet →'}
             </div>
           </div>
 
-          <div className="stat-card">
+          <div
+            className="stat-card"
+            onClick={() => setActiveTab('Routes')}
+            style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+            title="Click to view and manage School Routes"
+          >
             <div className="stat-header">
               <span>Routes</span>
               <MapPin size={18} style={{ color: 'var(--color-accent)' }} />
             </div>
             <div className="stat-value">{activeRoutes.length} Active</div>
-            <div className="stat-subtext">{routes.length} total configured routes</div>
+            <div className="stat-subtext">{routes.length > 0 ? `${routes.length} configured routes →` : 'Set up routes →'}</div>
           </div>
 
-          <div className="stat-card">
+          <div
+            className="stat-card"
+            onClick={() => setActiveTab('Requests')}
+            style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+            title="Click to view seat requests"
+          >
             <div className="stat-header">
               <span>Transportation Requests</span>
               <Users size={18} style={{ color: 'var(--color-warning)' }} />
             </div>
             <div className="stat-value">{pendingRequests.length} Pending</div>
-            <div className="stat-subtext">Parents awaiting seat approval</div>
+            <div className="stat-subtext">Review parent seat requests →</div>
           </div>
 
-          <div className="stat-card">
+          <div
+            className="stat-card"
+            onClick={() => setActiveTab('Trips')}
+            style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+            title="Click to manage Daily Trips & Boarding"
+          >
             <div className="stat-header">
               <span>Today's Trips</span>
               <Bus size={18} style={{ color: 'var(--color-success)' }} />
             </div>
             <div className="stat-value">{trips.length} Trips</div>
-            <div className="stat-subtext">Scheduled dispatch runs</div>
+            <div className="stat-subtext">Active dispatch runs →</div>
           </div>
         </div>
 
@@ -1539,28 +1574,30 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
                   <p style={{ fontSize: '0.875rem', margin: 0 }}>Create a new transit dispatch or activate scheduled routes in the Trips tab.</p>
                 </div>
               ) : (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Trip Name</th>
-                      <th>Route</th>
-                      <th>Vehicle</th>
-                      <th>Scheduled Time</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {trips.map((trip) => (
-                      <tr key={trip.id}>
-                        <td><strong>{trip.name || `Trip #${trip.id.slice(0, 6)}`}</strong></td>
-                        <td>{trip.route ? `${trip.route.origin} ➔ ${trip.route.destinationSchool}` : 'Configured Route'}</td>
-                        <td>{trip.vehicle ? `${trip.vehicle.make} ${trip.vehicle.model} (${trip.vehicle.plateNumber})` : 'Assigned Vehicle'}</td>
-                        <td>{trip.scheduledDepartureTime || trip.startTime ? new Date(trip.scheduledDepartureTime || trip.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Scheduled'}</td>
-                        <td><span className={`badge-status ${trip.status === 'IN_PROGRESS' ? 'active' : 'pending'}`}>{trip.status}</span></td>
+                <div className="table-responsive">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Trip Name</th>
+                        <th>Route</th>
+                        <th>Vehicle</th>
+                        <th>Scheduled Time</th>
+                        <th>Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {trips.map((trip) => (
+                        <tr key={trip.id}>
+                          <td><strong>{trip.name || `Trip #${trip.id.slice(0, 6)}`}</strong></td>
+                          <td>{trip.route ? `${trip.route.origin} ➔ ${trip.route.destinationSchool}` : 'Configured Route'}</td>
+                          <td>{trip.vehicle ? `${trip.vehicle.make} ${trip.vehicle.model} (${trip.vehicle.plateNumber})` : 'Assigned Vehicle'}</td>
+                          <td>{trip.scheduledDepartureTime || trip.startTime ? new Date(trip.scheduledDepartureTime || trip.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Scheduled'}</td>
+                          <td><span className={`badge-status ${trip.status === 'IN_PROGRESS' ? 'active' : 'pending'}`}>{trip.status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
 
@@ -1579,52 +1616,57 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
                   <p style={{ margin: 0, fontSize: '0.9rem' }}>No pending seat requests awaiting review.</p>
                 </div>
               ) : (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Parent Name</th>
-                      <th>Child</th>
-                      <th>Requested Route</th>
-                      <th>Pickup Point</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingRequests.slice(0, 5).map((req) => (
-                      <tr key={req.id}>
-                        <td>{req.parent ? `${req.parent.firstName} ${req.parent.lastName}` : 'Parent Guardian'}</td>
-                        <td>{req.student ? `${req.student.firstName} ${req.student.lastName}` : 'Student'}</td>
-                        <td>{req.route?.name || 'School Route'}</td>
-                        <td>{req.pickupStopName || 'Designated Stop'}</td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button
-                              className="btn btn-primary btn-sm"
-                              disabled={actionLoadingId === req.id}
-                              onClick={() => handleAcceptRequest(req.id)}
-                            >
-                              {actionLoadingId === req.id ? <Loader2 size={14} className="animate-spin" /> : 'Accept'}
-                            </button>
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              disabled={actionLoadingId === req.id}
-                              onClick={() => handleRejectRequest(req.id)}
-                            >
-                              Decline
-                            </button>
-                          </div>
-                        </td>
+                <div className="table-responsive">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Parent Name</th>
+                        <th>Child</th>
+                        <th>Requested Route</th>
+                        <th>Pickup Point</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {pendingRequests.slice(0, 5).map((req) => (
+                        <tr key={req.id}>
+                          <td>{req.parent ? `${req.parent.firstName} ${req.parent.lastName}` : 'Parent Guardian'}</td>
+                          <td>{req.student ? `${req.student.firstName} ${req.student.lastName}` : 'Student'}</td>
+                          <td>{req.route?.name || 'School Route'}</td>
+                          <td>{req.pickupStopName || 'Designated Stop'}</td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                className="btn btn-primary btn-sm"
+                                disabled={actionLoadingId === req.id}
+                                onClick={() => handleAcceptRequest(req.id)}
+                              >
+                                {actionLoadingId === req.id ? <Loader2 size={14} className="animate-spin" /> : 'Accept'}
+                              </button>
+                              <button
+                                className="btn btn-secondary btn-sm"
+                                disabled={actionLoadingId === req.id}
+                                onClick={() => handleRejectRequest(req.id)}
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </>
         )}
 
         {activeTab === 'Fleet' && (
-          <ProviderFleetPanel user={user} />
+          <ProviderFleetPanel
+            user={user}
+            onNavigateTab={(tab) => setActiveTab(tab)}
+          />
         )}
 
         {activeTab === 'Routes' && (

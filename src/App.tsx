@@ -32,6 +32,8 @@ import {
   Wrench,
   Fuel,
   Users,
+  Menu,
+  X,
 } from 'lucide-react';
 
 export type ViewState =
@@ -168,6 +170,7 @@ const MainContent: FC = () => {
     return 'LANDING';
   });
   const [selectedInitialRole, setSelectedInitialRole] = useState<UserRole>('PARENT');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [faydaNotification, setFaydaNotification] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -175,6 +178,7 @@ const MainContent: FC = () => {
 
   const navigateTo = (view: ViewState, role?: UserRole) => {
     clearError();
+    setMobileMenuOpen(false);
     if (role) {
       setSelectedInitialRole(role);
     }
@@ -413,7 +417,7 @@ const MainContent: FC = () => {
             {!user ? (
               <>
                 <button
-                  className="btn btn-ghost btn-sm"
+                  className="btn btn-ghost btn-sm hidden-mobile"
                   onClick={() => openRegister('PARENT')}
                   style={{ color: 'var(--color-primary)', fontWeight: 600 }}
                 >
@@ -426,7 +430,7 @@ const MainContent: FC = () => {
                   Sign In
                 </button>
                 <button
-                  className="btn btn-primary btn-sm"
+                  className="btn btn-primary btn-sm hidden-mobile"
                   onClick={() => openRegister('PARENT')}
                 >
                   Get Started
@@ -447,8 +451,72 @@ const MainContent: FC = () => {
                 {checkUserVerificationStatus(user).canAccessDashboard ? 'Go to Dashboard' : 'Complete Verification'}
               </button>
             )}
+
+            {/* Mobile Navigation Toggle Button */}
+            <button
+              type="button"
+              className="public-mobile-toggle"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Slide-down Navigation Menu */}
+        {mobileMenuOpen && (
+          <div className="public-mobile-menu">
+            <button
+              className={`mobile-nav-link ${currentView === 'SAFETY' ? 'active' : ''}`}
+              onClick={() => navigateTo('SAFETY')}
+            >
+              Safety Features
+            </button>
+            <button
+              className={`mobile-nav-link ${currentView === 'PROVIDERS' ? 'active' : ''}`}
+              onClick={() => navigateTo('PROVIDERS')}
+            >
+              For Providers
+            </button>
+            <button
+              className={`mobile-nav-link ${currentView === 'BUSINESSES' ? 'active' : ''}`}
+              onClick={() => navigateTo('BUSINESSES')}
+            >
+              For Businesses
+            </button>
+            <button
+              className={`mobile-nav-link ${currentView === 'ABOUT' ? 'active' : ''}`}
+              onClick={openAbout}
+            >
+              About SchoolSafe
+            </button>
+            <button
+              className={`mobile-nav-link ${currentView === 'CONTACT' ? 'active' : ''}`}
+              onClick={openContact}
+            >
+              Contact Support
+            </button>
+            {!user && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', paddingTop: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => openRegister('PARENT')}
+                  style={{ width: '100%', justifyContent: 'center' }}
+                >
+                  Get Started / Register
+                </button>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={openLogin}
+                  style={{ width: '100%', justifyContent: 'center' }}
+                >
+                  Sign In to Account
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
       {/* Main View Area */}

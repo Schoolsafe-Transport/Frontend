@@ -18,6 +18,7 @@ import {
   getAdminVehiclesApi,
   reviewAdminVehicleApi,
   AdminVehicle,
+  API_BASE_URL,
 } from '../../services/api';
 import { StatusBadge } from '../../components/admin/StatusBadge';
 import { RejectionModal } from '../../components/admin/RejectionModal';
@@ -520,7 +521,15 @@ export const AdminVehiclesPage: FC<{ onRefreshStats?: () => void }> = ({ onRefre
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <StatusBadge status={doc.isVerified} type="verification" />
                         <a
-                          href={doc.documentUrl}
+                          href={
+                            doc.documentUrl?.startsWith('http')
+                              ? doc.documentUrl
+                              : `${API_BASE_URL}${doc.documentUrl?.startsWith('/') ? doc.documentUrl : `/${doc.documentUrl}`}${
+                                  localStorage.getItem('schoolsafe_access_token')
+                                    ? `?token=${encodeURIComponent(localStorage.getItem('schoolsafe_access_token')!)}`
+                                    : ''
+                                }`
+                          }
                           target="_blank"
                           rel="noreferrer"
                           className="admin-btn admin-btn-secondary admin-btn-sm"

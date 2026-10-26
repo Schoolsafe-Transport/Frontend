@@ -30,6 +30,7 @@ export const AdminBusinessesPage: FC<{ onRefreshStats?: () => void }> = ({ onRef
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'ACTIVE' | 'REJECTED'>('ALL');
 
   const [selectedBusiness, setSelectedBusiness] = useState<AdminApplication | null>(null);
+  const [previewingDoc, setPreviewingDoc] = useState<any | null>(null);
   const [rejectionTarget, setRejectionTarget] = useState<AdminApplication | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -430,8 +431,17 @@ export const AdminBusinessesPage: FC<{ onRefreshStats?: () => void }> = ({ onRef
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                         <StatusBadge status={doc.status} />
+
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-secondary admin-btn-sm"
+                          onClick={() => setPreviewingDoc(doc)}
+                          title="Preview document"
+                        >
+                          <Eye size={12} /> View
+                        </button>
 
                         <a
                           href={getAccountDocumentUrl(doc.id)}
@@ -440,7 +450,7 @@ export const AdminBusinessesPage: FC<{ onRefreshStats?: () => void }> = ({ onRef
                           className="admin-btn admin-btn-secondary admin-btn-sm"
                           title="Open document file in new tab"
                         >
-                          <ExternalLink size={12} /> View
+                          <ExternalLink size={12} />
                         </a>
 
                         {(doc.status === 'PENDING_REVIEW' || (doc.status as string) === 'PENDING') && (
@@ -491,6 +501,89 @@ export const AdminBusinessesPage: FC<{ onRefreshStats?: () => void }> = ({ onRef
                     onClick={() => handleApprove(selectedBusiness)}
                   >
                     Approve Business
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* In-App Document Preview Modal */}
+      {previewingDoc && (
+        <div className="admin-modal-overlay" onClick={() => setPreviewingDoc(null)}>
+          <div
+            className="admin-modal"
+            style={{ maxWidth: '820px', width: '95vw', height: '90vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="admin-modal-header">
+              <div>
+                <h3 className="admin-modal-title">
+                  {previewingDoc.documentType.replace(/_/g, ' ')}
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: '#64748B' }}>
+                  {previewingDoc.documentName} • ID: {previewingDoc.id}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <a
+                  href={getAccountDocumentUrl(previewingDoc.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="admin-btn admin-btn-secondary admin-btn-sm"
+                >
+                  <ExternalLink size={14} /> Open in New Tab
+                </a>
+                <button
+                  className="admin-btn admin-btn-secondary admin-btn-sm"
+                  onClick={() => setPreviewingDoc(null)}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="admin-modal-body" style={{ padding: '0.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <iframe
+                src={getAccountDocumentUrl(previewingDoc.id)}
+                title="Document Viewer"
+                style={{
+                  width: '100%',
+                  flex: 1,
+                  border: 'none',
+                  borderRadius: '8px',
+                  backgroundColor: '#F8FAFC',
+                }}
+              />
+            </div>
+
+            <div className="admin-modal-footer">
+              <button
+                className="admin-btn admin-btn-secondary"
+                onClick={() => setPreviewingDoc(null)}
+              >
+                Close Preview
+              </button>
+              {(previewingDoc.status === 'PENDING' || previewingDoc.status === 'PENDING_REVIEW') && (
+                <>
+                  <button
+                    className="admin-btn admin-btn-danger"
+                    onClick={() => {
+                      handleReviewDocument(previewingDoc.id, 'REJECT');
+                      setPreviewingDoc(null);
+                    }}
+                  >
+                    Reject Document
+                  </button>
+                  <button
+                    className="admin-btn admin-btn-success"
+                    onClick={() => {
+                      handleReviewDocument(previewingDoc.id, 'APPROVE');
+                      setPreviewingDoc(null);
+                    }}
+                  >
+                    Approve Document
                   </button>
                 </>
               )}
