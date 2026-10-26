@@ -591,6 +591,15 @@ export const AdminProvidersPage: FC<{ onRefreshStats?: () => void }> = ({ onRefr
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <a
+                  href={`${getAccountDocumentUrl(previewingDoc.id)}&format=image`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="admin-btn admin-btn-secondary admin-btn-sm"
+                  title="View pure document image"
+                >
+                  <Eye size={14} /> Direct Image
+                </a>
+                <a
                   href={getAccountDocumentUrl(previewingDoc.id)}
                   target="_blank"
                   rel="noreferrer"
