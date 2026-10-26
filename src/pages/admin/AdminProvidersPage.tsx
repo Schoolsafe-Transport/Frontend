@@ -67,10 +67,6 @@ export const AdminProvidersPage: FC<{ onRefreshStats?: () => void }> = ({ onRefr
   };
 
   const handleApprove = async (app: AdminApplication) => {
-    if (!window.confirm(`Approve registration application for ${app.businessName || `${app.firstName} ${app.lastName}`}?`)) {
-      return;
-    }
-
     try {
       setActionLoadingId(app.id);
       await reviewAdminApplicationApi(app.id, 'APPROVE');

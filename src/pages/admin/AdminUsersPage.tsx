@@ -71,21 +71,19 @@ export const AdminUsersPage: FC = () => {
   };
 
   const handleStatusChange = async (userId: string, newStatus: 'ACTIVE' | 'SUSPENDED' | 'REJECTED') => {
-    const confirmMessage =
-      newStatus === 'ACTIVE'
-        ? 'Are you sure you want to activate/approve this user account?'
-        : newStatus === 'SUSPENDED'
-        ? 'Are you sure you want to suspend this user? They will be locked out of the platform.'
-        : 'Are you sure you want to reject this account?';
-
-    if (!window.confirm(confirmMessage)) return;
-
     try {
       setActionLoadingId(userId);
       await updateAdminUserStatusApi(userId, newStatus);
+      const actionLabel =
+        newStatus === 'ACTIVE'
+          ? 'ACTIVATED & approved! In-app notification and email dispatched'
+          : newStatus === 'REJECTED'
+          ? 'marked as REJECTED. In-app notification and email dispatched'
+          : 'SUSPENDED';
+
       setToastMessage({
         type: 'success',
-        text: `User account status successfully updated to ${newStatus}.`,
+        text: `User account successfully ${actionLabel}.`,
       });
       // Refresh list
       await fetchUsers();
@@ -103,9 +101,6 @@ export const AdminUsersPage: FC = () => {
   };
 
   const handleDeleteUser = async (userId: string, email: string) => {
-    if (!window.confirm(`Are you sure you want to permanently delete user "${email}"? This action cannot be undone.`)) {
-      return;
-    }
     try {
       setActionLoadingId(userId);
       await deleteAdminUserApi(userId);
@@ -414,8 +409,30 @@ export const AdminUsersPage: FC = () => {
                             disabled={actionLoadingId === u.id}
                             onClick={() => handleStatusChange(u.id, 'ACTIVE')}
                             title="Activate / Approve User Account"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                           >
-                            Activate
+                            {actionLoadingId === u.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                            Activate (Approve)
+                          </button>
+                        )}
+
+                        {u.status !== 'REJECTED' && u.role !== 'ADMIN' && (
+                          <button
+                            className="admin-btn admin-btn-sm"
+                            disabled={actionLoadingId === u.id}
+                            onClick={() => handleStatusChange(u.id, 'REJECTED')}
+                            title="Reject User Account"
+                            style={{
+                              backgroundColor: '#FEF3C7',
+                              color: '#B45309',
+                              border: '1px solid #FDE68A',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                            }}
+                          >
+                            {actionLoadingId === u.id && <Loader2 size={13} className="animate-spin" />}
+                            Reject
                           </button>
                         )}
 
@@ -425,7 +442,9 @@ export const AdminUsersPage: FC = () => {
                             disabled={actionLoadingId === u.id}
                             onClick={() => handleStatusChange(u.id, 'SUSPENDED')}
                             title="Suspend User Account"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                           >
+                            {actionLoadingId === u.id && <Loader2 size={13} className="animate-spin" />}
                             Suspend
                           </button>
                         )}
@@ -440,9 +459,13 @@ export const AdminUsersPage: FC = () => {
                               backgroundColor: '#FEE2E2',
                               color: '#DC2626',
                               border: '1px solid #FECACA',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
                             }}
                           >
-                            <Trash2 size={13} /> Delete
+                            {actionLoadingId === u.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                            Delete
                           </button>
                         )}
                       </div>
@@ -613,8 +636,29 @@ export const AdminUsersPage: FC = () => {
                   className="admin-btn admin-btn-success"
                   onClick={() => handleStatusChange(selectedUser.id, 'ACTIVE')}
                   disabled={actionLoadingId === selectedUser.id}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                 >
-                  Activate Account
+                  {actionLoadingId === selectedUser.id ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                  Activate (Approve)
+                </button>
+              )}
+
+              {selectedUser.status !== 'REJECTED' && selectedUser.role !== 'ADMIN' && (
+                <button
+                  className="admin-btn"
+                  onClick={() => handleStatusChange(selectedUser.id, 'REJECTED')}
+                  disabled={actionLoadingId === selectedUser.id}
+                  style={{
+                    backgroundColor: '#FEF3C7',
+                    color: '#B45309',
+                    border: '1px solid #FDE68A',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                >
+                  {actionLoadingId === selectedUser.id && <Loader2 size={15} className="animate-spin" />}
+                  Reject Account
                 </button>
               )}
 
@@ -623,7 +667,9 @@ export const AdminUsersPage: FC = () => {
                   className="admin-btn admin-btn-danger"
                   onClick={() => handleStatusChange(selectedUser.id, 'SUSPENDED')}
                   disabled={actionLoadingId === selectedUser.id}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                 >
+                  {actionLoadingId === selectedUser.id && <Loader2 size={15} className="animate-spin" />}
                   Suspend Account
                 </button>
               )}
@@ -635,7 +681,8 @@ export const AdminUsersPage: FC = () => {
                   disabled={actionLoadingId === selectedUser.id}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                 >
-                  <Trash2 size={15} /> Delete Account
+                  {actionLoadingId === selectedUser.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                  Delete Account
                 </button>
               )}
             </div>

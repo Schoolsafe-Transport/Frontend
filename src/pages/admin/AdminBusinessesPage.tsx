@@ -64,10 +64,6 @@ export const AdminBusinessesPage: FC<{ onRefreshStats?: () => void }> = ({ onRef
   };
 
   const handleApprove = async (business: AdminApplication) => {
-    if (!window.confirm(`Approve business account for ${business.businessName || `${business.firstName} ${business.lastName}`}?`)) {
-      return;
-    }
-
     try {
       setActionLoadingId(business.id);
       await reviewAdminApplicationApi(business.id, 'APPROVE');
