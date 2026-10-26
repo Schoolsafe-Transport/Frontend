@@ -541,12 +541,26 @@ export const AdminBusinessesPage: FC<{ onRefreshStats?: () => void }> = ({ onRef
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <a
+                  href={
+                    previewingDoc.fileUrl?.startsWith('data:')
+                      ? previewingDoc.fileUrl
+                      : `${getAccountDocumentUrl(previewingDoc.id)}&format=${previewingDoc.documentName?.toLowerCase().endsWith('.pdf') ? 'raw' : 'image'}`
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="admin-btn admin-btn-secondary admin-btn-sm"
+                  title="View standalone raw file"
+                >
+                  <Eye size={14} /> {previewingDoc.documentName?.toLowerCase().endsWith('.pdf') ? 'Raw PDF' : 'Direct Image'}
+                </a>
+                <a
                   href={getAccountDocumentUrl(previewingDoc.id)}
                   target="_blank"
                   rel="noreferrer"
                   className="admin-btn admin-btn-secondary admin-btn-sm"
+                  title="Open full inspection in new window"
                 >
-                  <ExternalLink size={14} /> Open in New Tab
+                  <ExternalLink size={14} /> Full View
                 </a>
                 <button
                   className="admin-btn admin-btn-secondary admin-btn-sm"
@@ -557,18 +571,50 @@ export const AdminBusinessesPage: FC<{ onRefreshStats?: () => void }> = ({ onRef
               </div>
             </div>
 
-            <div className="admin-modal-body" style={{ padding: '0.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <iframe
-                src={getAccountDocumentUrl(previewingDoc.id)}
-                title="Document Viewer"
-                style={{
-                  width: '100%',
-                  flex: 1,
-                  border: 'none',
-                  borderRadius: '8px',
-                  backgroundColor: '#F8FAFC',
-                }}
-              />
+            <div className="admin-modal-body" style={{ padding: '0.75rem', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC', overflow: 'hidden' }}>
+              {previewingDoc.fileUrl?.startsWith('data:image/') ? (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: '1rem' }}>
+                  <img
+                    src={previewingDoc.fileUrl}
+                    alt={previewingDoc.documentName || 'Document Image'}
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      objectFit: 'contain',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      border: '1px solid #E2E8F0',
+                    }}
+                  />
+                </div>
+              ) : previewingDoc.fileUrl?.startsWith('data:application/pdf') ? (
+                <object
+                  data={previewingDoc.fileUrl}
+                  type="application/pdf"
+                  width="100%"
+                  height="100%"
+                  style={{ flex: 1, borderRadius: '8px', border: 'none' }}
+                >
+                  <iframe
+                    src={getAccountDocumentUrl(previewingDoc.id)}
+                    title="Document Viewer"
+                    style={{ width: '100%', height: '100%', flex: 1, border: 'none', borderRadius: '8px' }}
+                  />
+                </object>
+              ) : (
+                <iframe
+                  src={getAccountDocumentUrl(previewingDoc.id)}
+                  title="Document Viewer"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    flex: 1,
+                    border: 'none',
+                    borderRadius: '8px',
+                    backgroundColor: '#F8FAFC',
+                  }}
+                />
+              )}
             </div>
 
             <div className="admin-modal-footer">
