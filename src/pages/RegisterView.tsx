@@ -86,7 +86,6 @@ export const RegisterView: FC<RegisterViewProps> = ({
   const [resendCooldown, setResendCooldown] = useState(0);
   const [emailNotice, setEmailNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [isEmailVerifiedLocally, setIsEmailVerifiedLocally] = useState(false);
-  const [serverVerificationCode, setServerVerificationCode] = useState<string | null>(null);
 
 
   // Step 4A: Parent Information
@@ -227,10 +226,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
         role,
       });
 
-      const code = regUser?.latestVerificationCode || (regUser as any)?.sixDigitCode || serverVerificationCode;
-      if (code) {
-        setServerVerificationCode(code);
-      }
+      const code = regUser?.latestVerificationCode || (regUser as any)?.sixDigitCode;
 
       // Immediate email dispatch via Vercel serverless function to guarantee delivery to real inbox
       fetch('/api/send-email', {
@@ -318,8 +314,6 @@ export const RegisterView: FC<RegisterViewProps> = ({
       const targetEmail = user?.email || email.trim();
       const res: any = await resendVerificationEmailApi(targetEmail);
       if (res?.sixDigitCode) {
-        setServerVerificationCode(res.sixDigitCode);
-
         fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -921,34 +915,20 @@ export const RegisterView: FC<RegisterViewProps> = ({
             <>
               {/* 6-Digit Code Entry (Primary) */}
               <form onSubmit={handleVerifyEmailCode} className="auth-form" style={{ marginTop: 0 }}>
-                {(serverVerificationCode || (user as any)?.latestVerificationCode) && (
-                  <div
-                    style={{
-                      padding: '1.25rem',
-                      backgroundColor: '#EFF6FF',
-                      border: '2px solid #3B82F6',
-                      borderRadius: 'var(--radius-md)',
-                      textAlign: 'center',
-                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.12)',
-                      marginBottom: '1rem',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E40AF', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                      Your 6-Digit Verification Code
-                    </div>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '8px', color: '#1D4ED8', fontFamily: 'monospace', margin: '0.4rem 0' }}>
-                      {serverVerificationCode || (user as any)?.latestVerificationCode}
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={() => setEmailCodeInput(serverVerificationCode || (user as any)?.latestVerificationCode || '')}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem' }}
-                    >
-                      <CheckCircle2 size={15} /> Auto-Fill Verification Code
-                    </button>
-                  </div>
-                )}
+                <div
+                  style={{
+                    padding: '0.875rem 1.25rem',
+                    backgroundColor: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 'var(--radius-md)',
+                    textAlign: 'center',
+                    marginBottom: '1.25rem',
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: '0.875rem', color: '#475569', lineHeight: 1.5 }}>
+                    🔒 For security, your 6-digit verification code was sent directly to your email inbox. Please check your inbox and enter the code below.
+                  </p>
+                </div>
 
                 <div className="form-group" style={{ marginBottom: '1.25rem', textAlign: 'center' }}>
                   <label htmlFor="email-code-input" style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-primary)' }}>
