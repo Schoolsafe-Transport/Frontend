@@ -48,7 +48,13 @@ export const ContactView: FC<ContactViewProps> = ({ onNavigateHome }) => {
               </div>
               <div>
                 <strong style={{ display: 'block', fontSize: '1rem', color: 'var(--color-text-main)' }}>Phone & Emergency Dispatch</strong>
-                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.925rem' }}>+251 11 662 4890 • Toll-Free Safety Hotline</span>
+                <a
+                  href="tel:+251942027483"
+                  style={{ color: 'var(--color-primary)', fontWeight: 600, fontSize: '0.95rem', textDecoration: 'none' }}
+                >
+                  +251942027483
+                </a>
+                <span style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>Direct Line & Safety Hotline</span>
               </div>
             </div>
 
@@ -58,7 +64,13 @@ export const ContactView: FC<ContactViewProps> = ({ onNavigateHome }) => {
               </div>
               <div>
                 <strong style={{ display: 'block', fontSize: '1rem', color: 'var(--color-text-main)' }}>Support & Verification Email</strong>
-                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.925rem' }}>support@schoolsafe.org • verifications@schoolsafe.org</span>
+                <a
+                  href="mailto:rachelberhane716@gmail.com"
+                  style={{ color: 'var(--color-accent)', fontWeight: 600, fontSize: '0.95rem', textDecoration: 'none' }}
+                >
+                  rachelberhane716@gmail.com
+                </a>
+                <span style={{ display: 'block', color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>Direct Inquiries & Helpdesk</span>
               </div>
             </div>
 

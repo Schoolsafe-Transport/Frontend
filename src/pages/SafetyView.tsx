@@ -322,7 +322,7 @@ export const SafetyView: FC<SafetyViewProps> = ({
                   24/7 Dedicated Transit Support & Hotline
                 </h3>
                 <p style={{ color: 'var(--color-text-secondary)', margin: 0, fontSize: '0.95rem' }}>
-                  Direct line: <strong>+251 11 662 4890</strong> • Monitored actively during all operating school transit windows.
+                  Direct line: <a href="tel:+251942027483" style={{ color: 'inherit', fontWeight: 700, textDecoration: 'underline' }}>+251942027483</a> • Monitored actively during all operating school transit windows.
                 </p>
               </div>
             </div>
