@@ -2,7 +2,7 @@ import axios from 'axios';
 import { User, AuthResponse, RegisterPayload, AuthTokens } from '../types/auth';
 
 const normalizeApiUrl = (url?: string): string => {
-  const trimmed = (url || 'http://localhost:5000/api').trim().replace(/\/+$/, '');
+  const trimmed = (url || 'https://schoolsafe.onrender.com/api').trim().replace(/\/+$/, '');
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
 };
 
