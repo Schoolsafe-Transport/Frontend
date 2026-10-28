@@ -182,7 +182,23 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
     // Fit map bounds to encompass the full route
     map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
 
+    // Invalidate size to ensure all OpenStreetMap tiles render correctly even within tabs/modals
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 250);
+
+    // Responsive container resize observer
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && mapContainerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        map.invalidateSize();
+      });
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
     return () => {
+      clearTimeout(timer);
+      if (resizeObserver) resizeObserver.disconnect();
       map.remove();
       mapInstanceRef.current = null;
     };
@@ -229,7 +245,8 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
         socket.connect();
       }
 
-      socket.emit('join_trip', tripId);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('schoolsafe_access_token') : undefined;
+      socket.emit('join_trip', { tripId, token });
 
       const handleLocationUpdate = (data: {
         tripId: string;
@@ -308,12 +325,14 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
         // 1. Broadcast over Socket.IO for immediate real-time parent tracking
         try {
           const socket = getSocket();
+          const token = typeof window !== 'undefined' ? localStorage.getItem('schoolsafe_access_token') : undefined;
           socket.emit('driver_location', {
             tripId,
             latitude,
             longitude,
             speed: currentSpeed,
             heading: currentHeading,
+            token,
             isSimulated: false,
           });
         } catch (_err) {
@@ -413,12 +432,14 @@ export const LiveTrackingMap: FC<LiveTrackingMapProps> = ({
       // Emit over Socket.IO so all other connected devices see the bus move live!
       try {
         const socket = getSocket();
+        const token = typeof window !== 'undefined' ? localStorage.getItem('schoolsafe_access_token') : undefined;
         socket.emit('driver_location', {
           tripId,
           latitude: nextCoord.lat,
           longitude: nextCoord.lng,
           speed: simulatedSpeed,
           heading: simulatedHeading,
+          token,
           isSimulated: true,
         });
       } catch (_err) {

@@ -40,6 +40,7 @@ export const TripsAndBoardingPanel: FC<{ user?: any; isParent?: boolean }> = ({
   const [tripType, setTripType] = useState<string>('MORNING');
   const [tripNotes, setTripNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [showLiveMapPreview, setShowLiveMapPreview] = useState<boolean>(true);
 
   // QR SafePass Scanner State (Task 4 & 5)
   const [showQrScanModal, setShowQrScanModal] = useState<boolean>(false);
@@ -107,7 +108,8 @@ export const TripsAndBoardingPanel: FC<{ user?: any; isParent?: boolean }> = ({
       if (!socket.connected) {
         socket.connect();
       }
-      socket.emit('join_trip', selectedTripId);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('schoolsafe_access_token') : undefined;
+      socket.emit('join_trip', { tripId: selectedTripId, token });
 
       const handleBoarding = () => {
         loadPassengers();
@@ -277,18 +279,44 @@ export const TripsAndBoardingPanel: FC<{ user?: any; isParent?: boolean }> = ({
           Loading daily transit runs...
         </div>
       ) : trips.length === 0 ? (
-        <div style={{ padding: '3rem 1rem', textAlign: 'center' }}>
-          <Bus size={40} style={{ color: 'var(--color-border)', margin: '0 auto 1rem', display: 'block' }} />
-          <h4 style={{ color: 'var(--color-primary)', marginBottom: '0.35rem' }}>No active transit runs today</h4>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem', maxWidth: '420px', margin: '0 auto 1.25rem' }}>
-            {isParent
-              ? 'No trips are scheduled for your enrolled routes at this moment.'
-              : 'Start a transit run for your active route to check in enrolled passengers and broadcast live updates.'}
-          </p>
-          {!isParent && routes.length > 0 && (
-            <button className="btn btn-primary btn-sm" onClick={() => setShowScheduleModal(true)}>
-              <Plus size={15} /> Schedule Run Now
-            </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ padding: '2rem 1rem', textAlign: 'center', backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+            <Bus size={38} style={{ color: 'var(--color-border)', margin: '0 auto 0.75rem', display: 'block' }} />
+            <h4 style={{ color: 'var(--color-primary)', marginBottom: '0.35rem' }}>No Active Dispatches Today</h4>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem', maxWidth: '440px', margin: '0 auto 1.25rem', lineHeight: 1.5 }}>
+              {isParent
+                ? 'No active school buses are dispatched for your routes today. You can test and monitor route corridors using the interactive live GPS map below.'
+                : 'Start a transit run for your active route to check in enrolled passengers and broadcast live satellite GPS telemetry.'}
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowLiveMapPreview(!showLiveMapPreview)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Radio size={14} style={{ color: '#059669' }} />
+                {showLiveMapPreview ? 'Hide GPS Map' : 'Show Interactive GPS Map'}
+              </button>
+              {!isParent && routes.length > 0 && (
+                <button className="btn btn-primary btn-sm" onClick={() => setShowScheduleModal(true)}>
+                  <Plus size={15} /> Schedule Run Now
+                </button>
+              )}
+            </div>
+          </div>
+
+          {showLiveMapPreview && (
+            <div>
+              <LiveTrackingMap
+                tripId="demo-active-run"
+                tripStatus="IN_PROGRESS"
+                routeName="Route Corridor: Bole ➔ Kazanchis ➔ Cambridge Academy"
+                driverName="Dawit Abebe"
+                vehiclePlate="Toyota HiAce • 3-A2849"
+                isProvider={!isParent}
+              />
+            </div>
           )}
         </div>
       ) : (
