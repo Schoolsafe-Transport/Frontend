@@ -15,6 +15,7 @@ import { HomeImageSlider } from './components/HomeImageSlider';
 import { FaydaVerificationView } from './pages/FaydaVerificationView';
 import { EmailVerificationView } from './pages/EmailVerificationView';
 import { AdminDashboardRoot } from './pages/admin/AdminDashboardRoot';
+import { ActiveAdBanner } from './components/dashboard/ActiveAdBanner';
 import { User, UserRole } from './types/auth';
 import {
   ShieldCheck,
@@ -760,6 +761,11 @@ const MainContent: FC = () => {
                     <HomeImageSlider />
                   </div>
                 </section>
+
+                {/* Sponsored Partner & Community Announcements */}
+                <div className="container" style={{ paddingTop: '1.5rem', paddingBottom: '0.5rem' }}>
+                  <ActiveAdBanner onFindTransportation={() => openRegister('PARENT')} />
+                </div>
 
                 {/* 8. How It Works Section */}
                 <section id="how-it-works" className="section section-alt">
