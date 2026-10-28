@@ -15,6 +15,8 @@ import { AdminAdvertisementsPage } from './AdminAdvertisementsPage';
 import { AdminPaymentsPage } from './AdminPaymentsPage';
 import { AdminAuditLogsPage } from './AdminAuditLogsPage';
 import { getAdminStatsApi, AdminPlatformStats } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { ShieldAlert } from 'lucide-react';
 
 const routeConfig: Record<
   AdminRoutePath,
@@ -81,11 +83,15 @@ export const AdminDashboardRoot: FC = () => {
     return '/admin';
   };
 
+  const { user } = useAuth();
+  const isUnauthorized = Boolean(user && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN');
+
   const [currentPath, setCurrentPath] = useState<AdminRoutePath>(resolveCurrentPath);
   const [stats, setStats] = useState<AdminPlatformStats | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchStatsCounts = async () => {
+    if (isUnauthorized) return;
     try {
       setIsRefreshing(true);
       const data = await getAdminStatsApi();
@@ -98,8 +104,10 @@ export const AdminDashboardRoot: FC = () => {
   };
 
   useEffect(() => {
-    fetchStatsCounts();
-  }, []);
+    if (!isUnauthorized) {
+      fetchStatsCounts();
+    }
+  }, [isUnauthorized]);
 
   // Listen to browser popstate (Back/Forward navigation)
   useEffect(() => {
@@ -135,6 +143,56 @@ export const AdminDashboardRoot: FC = () => {
   };
 
   const pageMeta = routeConfig[currentPath] || routeConfig['/admin'];
+
+  if (isUnauthorized && user) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#F8FAFC' }}>
+        <header className="navbar-clean">
+          <div className="container navbar-inner">
+            <div className="brand-link" onClick={() => { window.location.href = '/'; }} role="button" tabIndex={0}>
+              <div className="brand-logo-wrap">
+                <img src="/logo-shield.png" alt="SchoolSafe Logo" className="brand-logo-img" />
+              </div>
+              <div className="brand-text-col">
+                <span className="brand-text">SchoolSafe</span>
+                <span className="brand-tagline">ADMIN CONSOLE</span>
+              </div>
+            </div>
+            <div className="nav-cta-group">
+              <button className="btn btn-primary btn-sm" onClick={() => { window.location.href = '/'; }}>
+                Return to Dashboard
+              </button>
+            </div>
+          </div>
+        </header>
+        <main style={{ flex: 1, padding: '3.5rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ maxWidth: '520px', width: '100%', textAlign: 'center' }}>
+            <div className="panel-card" style={{ padding: '2.5rem', backgroundColor: '#FFFFFF', borderRadius: '16px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01)', border: '1px solid #E2E8F0' }}>
+              <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: '#FEF2F2', color: '#DC2626', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem' }}>
+                <ShieldAlert size={32} />
+              </div>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.75rem' }}>
+                Administrator Authorization Required
+              </h2>
+              <p style={{ color: '#64748B', fontSize: '0.925rem', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+                Your account (<strong>{user.email}</strong>) is currently signed in as <strong>{user.role}</strong>. Provider applications, verification documents, and user management require platform administrator privileges.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => { window.location.href = '/'; }}
+                  style={{ flex: 1, justifyContent: 'center', minWidth: '180px' }}
+                >
+                  Go to {user.role === 'PARENT' ? 'Parent' : 'User'} Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <AdminLayout

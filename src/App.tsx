@@ -311,8 +311,49 @@ const MainContent: FC = () => {
       );
     }
     if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-      navigateTo('LANDING');
-      return null;
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--color-bg)' }}>
+          <header className="navbar-clean">
+            <div className="container navbar-inner">
+              <div className="brand-link" onClick={openHome} role="button" tabIndex={0}>
+                <div className="brand-logo-wrap">
+                  <img src="/logo-shield.png" alt="SchoolSafe Logo" className="brand-logo-img" />
+                </div>
+                <div className="brand-text-col">
+                  <span className="brand-text">SchoolSafe</span>
+                  <span className="brand-tagline">ADMIN CONSOLE</span>
+                </div>
+              </div>
+              <div className="nav-cta-group">
+                <button className="btn btn-secondary btn-sm" onClick={() => navigateTo('LANDING')}>Return to Dashboard</button>
+              </div>
+            </div>
+          </header>
+          <main style={{ flex: 1, padding: '3rem 1rem' }}>
+            <div className="container" style={{ maxWidth: '520px', textAlign: 'center' }}>
+              <div className="panel-card" style={{ padding: '2.5rem' }}>
+                <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#FEF2F2', color: '#DC2626', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+                  <AlertTriangle size={28} />
+                </div>
+                <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.75rem' }}>
+                  Administrator Access Required
+                </h2>
+                <p style={{ color: '#64748B', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+                  Your account (<strong>{user.email}</strong>) is currently signed in with the role <strong>{user.role}</strong>. Platform operator verification, provider approvals, and user accounts require administrator privileges.
+                </p>
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button className="btn btn-primary" onClick={() => navigateTo('LANDING')} style={{ flex: 1, justifyContent: 'center' }}>
+                    Go to {user.role === 'PARENT' ? 'Parent' : 'User'} Dashboard
+                  </button>
+                  <button className="btn btn-secondary" onClick={openLogin} style={{ flex: 1, justifyContent: 'center' }}>
+                    Sign In with Admin Account
+                  </button>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      );
     }
   }
 
