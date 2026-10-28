@@ -101,6 +101,9 @@ export const RegisterView: FC<RegisterViewProps> = ({
   const [providerBusinessName, setProviderBusinessName] = useState('');
   const [providerLicenseNumber, setProviderLicenseNumber] = useState('');
   const [providerServiceArea, setProviderServiceArea] = useState('');
+  const [providerRouteOrigin, setProviderRouteOrigin] = useState('');
+  const [providerRouteDestination, setProviderRouteDestination] = useState('');
+  const [providerMonthlyPrice, setProviderMonthlyPrice] = useState('');
   const [providerLicenseFile, setProviderLicenseFile] = useState<File | null>(null);
   const [providerVehiclePlate, setProviderVehiclePlate] = useState('');
   const [providerVehicleCapacity, setProviderVehicleCapacity] = useState('14');
@@ -401,11 +404,15 @@ export const RegisterView: FC<RegisterViewProps> = ({
           return;
         }
 
+        const combinedServiceArea = providerRouteOrigin.trim() && providerRouteDestination.trim()
+          ? `${providerRouteOrigin.trim()} to ${providerRouteDestination.trim()}${providerMonthlyPrice.trim() ? ` | ETB ${providerMonthlyPrice.trim()}` : ''}`
+          : providerServiceArea.trim() || undefined;
+
         // Save onboarding details
         await saveOnboardingApi({
           businessName: providerBusinessName.trim(),
           licenseNumber: providerLicenseNumber.trim(),
-          serviceArea: providerServiceArea.trim() || undefined,
+          serviceArea: combinedServiceArea,
           registrationStep: 'STEP_4_COMPLETED',
         });
 
@@ -1243,6 +1250,47 @@ export const RegisterView: FC<RegisterViewProps> = ({
                     className="form-input"
                     onChange={(e) => setProviderInsuranceDocFile(e.target.files?.[0] || null)}
                   />
+                </div>
+
+                <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--color-primary)' }}>
+                    Primary Route & Service Fee (From What Start, Destination & Price)
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div className="form-group">
+                      <label>Route Starting Point (Origin) *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Mekelle Central, Romanat"
+                        value={providerRouteOrigin}
+                        onChange={(e) => setProviderRouteOrigin(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Destination School *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Atse Yohannes School"
+                        value={providerRouteDestination}
+                        onChange={(e) => setProviderRouteDestination(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                    <label>Monthly Service Fee (ETB / Month) *</label>
+                    <input
+                      type="number"
+                      min={100}
+                      className="form-input"
+                      placeholder="e.g. 2800"
+                      value={providerMonthlyPrice}
+                      onChange={(e) => setProviderMonthlyPrice(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
             </>

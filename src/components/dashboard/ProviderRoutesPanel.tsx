@@ -3,12 +3,14 @@ import {
   MapPin,
   Plus,
   Trash2,
+  Edit3,
   X,
 } from 'lucide-react';
 import {
   getProviderRoutesApi,
   getVehiclesApi,
   createRouteApi,
+  updateRouteApi,
   deleteRouteApi,
 } from '../../services/api';
 
@@ -21,7 +23,7 @@ export const ProviderRoutesPanel: FC<{ user: any }> = ({ user }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Form State
+  // Form State (Create)
   const [vehicleId, setVehicleId] = useState('');
   const [name, setName] = useState('');
   const [origin, setOrigin] = useState('');
@@ -29,10 +31,23 @@ export const ProviderRoutesPanel: FC<{ user: any }> = ({ user }) => {
   const [departureTimeMorning, setDepartureTimeMorning] = useState('07:00 AM');
   const [departureTimeAfternoon, setDepartureTimeAfternoon] = useState('15:30 PM');
   const [serviceType, setServiceType] = useState<'BOTH' | 'MORNING' | 'AFTERNOON'>('BOTH');
-  const [monthlyPrice, setMonthlyPrice] = useState<number | ''>(2500);
+  const [monthlyPrice, setMonthlyPrice] = useState<number | ''>('');
   const [stops, setStops] = useState<Array<{ name: string; pickupTimeMorning?: string; dropoffTimeAfternoon?: string }>>([
     { name: '', pickupTimeMorning: '07:10 AM', dropoffTimeAfternoon: '15:45 PM' },
   ]);
+
+  // Form State (Edit Route)
+  const [editingRoute, setEditingRoute] = useState<any | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editOrigin, setEditOrigin] = useState('');
+  const [editDestinationSchool, setEditDestinationSchool] = useState('');
+  const [editMonthlyPrice, setEditMonthlyPrice] = useState<number | ''>('');
+  const [editDepartureTimeMorning, setEditDepartureTimeMorning] = useState('07:00 AM');
+  const [editDepartureTimeAfternoon, setEditDepartureTimeAfternoon] = useState('15:30 PM');
+  const [editServiceType, setEditServiceType] = useState<'BOTH' | 'MORNING' | 'AFTERNOON'>('BOTH');
+  const [editVehicleId, setEditVehicleId] = useState('');
+  const [editStops, setEditStops] = useState<Array<{ name: string; pickupTimeMorning?: string; dropoffTimeAfternoon?: string }>>([]);
+  const [isUpdatingRoute, setIsUpdatingRoute] = useState(false);
 
   const loadData = async () => {
     try {
@@ -110,6 +125,69 @@ export const ProviderRoutesPanel: FC<{ user: any }> = ({ user }) => {
       setError(err.response?.data?.message || err.message || 'Failed to create route');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleOpenEditRoute = (r: any) => {
+    setEditingRoute(r);
+    setEditName(r.name || '');
+    setEditOrigin(r.origin || '');
+    setEditDestinationSchool(r.destinationSchool || '');
+    setEditMonthlyPrice(r.monthlyPrice || '');
+    setEditDepartureTimeMorning(r.departureTimeMorning || '07:00 AM');
+    setEditDepartureTimeAfternoon(r.departureTimeAfternoon || '15:30 PM');
+    setEditServiceType(r.serviceType || 'BOTH');
+    setEditVehicleId(r.vehicleId || vehicles[0]?.id || '');
+    setEditStops(
+      r.stops && r.stops.length > 0
+        ? r.stops.map((s: any) => ({
+            name: s.name,
+            pickupTimeMorning: s.pickupTimeMorning || '07:15 AM',
+            dropoffTimeAfternoon: s.dropoffTimeAfternoon || '16:00 PM',
+          }))
+        : [{ name: '', pickupTimeMorning: '07:15 AM', dropoffTimeAfternoon: '16:00 PM' }]
+    );
+  };
+
+  const handleUpdateRoute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRoute) return;
+    if (!editVehicleId) {
+      setError('Please select an assigned vehicle.');
+      return;
+    }
+    if (!editMonthlyPrice || Number(editMonthlyPrice) <= 0) {
+      setError('Please specify a monthly price.');
+      return;
+    }
+
+    try {
+      setError(null);
+      setIsUpdatingRoute(true);
+      const validStops = editStops
+        .filter((s) => s.name.trim() !== '')
+        .map((s, idx) => ({ ...s, orderIndex: idx }));
+
+      await updateRouteApi(editingRoute.id, {
+        vehicleId: editVehicleId,
+        name: editName.trim(),
+        origin: editOrigin.trim(),
+        destinationSchool: editDestinationSchool.trim(),
+        departureTimeMorning: editDepartureTimeMorning,
+        departureTimeAfternoon: editDepartureTimeAfternoon,
+        serviceType: editServiceType,
+        monthlyPrice: Number(editMonthlyPrice),
+        stops: validStops.length > 0 ? validStops : undefined,
+      });
+
+      setSuccess(`Route "${editName}" updated successfully!`);
+      setEditingRoute(null);
+      loadData();
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Failed to update route');
+    } finally {
+      setIsUpdatingRoute(false);
     }
   };
 
@@ -251,14 +329,24 @@ export const ProviderRoutesPanel: FC<{ user: any }> = ({ user }) => {
                   </span>
                 </td>
                 <td>
-                  <button
-                    onClick={() => handleDeleteRoute(r.id, r.name)}
-                    className="btn btn-ghost btn-sm"
-                    style={{ color: 'var(--color-danger)', padding: '0.25rem 0.5rem' }}
-                    title="Remove Route"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.35rem' }}>
+                    <button
+                      onClick={() => handleOpenEditRoute(r)}
+                      className="btn btn-ghost btn-sm"
+                      style={{ color: 'var(--color-primary)', padding: '0.25rem 0.5rem' }}
+                      title="Edit Route (Origin, Destination, Price)"
+                    >
+                      <Edit3 size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteRoute(r.id, r.name)}
+                      className="btn btn-ghost btn-sm"
+                      style={{ color: 'var(--color-danger)', padding: '0.25rem 0.5rem' }}
+                      title="Remove Route"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -385,7 +473,7 @@ export const ProviderRoutesPanel: FC<{ user: any }> = ({ user }) => {
                     required
                     value={monthlyPrice}
                     onChange={(e) => setMonthlyPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder="2500"
+                    placeholder="e.g. 2800"
                     style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}
                   />
                 </div>
@@ -493,6 +581,176 @@ export const ProviderRoutesPanel: FC<{ user: any }> = ({ user }) => {
                   disabled={submitting || vehicles.length === 0}
                 >
                   {submitting ? 'Creating...' : 'Publish Route'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Edit Route Modal */}
+      {editingRoute && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--color-bg)',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '680px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: 'var(--shadow-xl)',
+              padding: '1.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.75rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--color-primary)' }}>Edit Route, Destination & Price</h3>
+                <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                  Update origin start area, destination school, and monthly fee for your vehicle route
+                </p>
+              </div>
+              <button
+                onClick={() => setEditingRoute(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateRoute}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                  Assigned Vehicle *
+                </label>
+                <select
+                  required
+                  value={editVehicleId}
+                  onChange={(e) => setEditVehicleId(e.target.value)}
+                  style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                >
+                  {vehicles.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.make} {v.model} ({v.plateNumber}) • {v.capacity} Seats
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Route Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Origin / Starting Point *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editOrigin}
+                    onChange={(e) => setEditOrigin(e.target.value)}
+                    placeholder="e.g. Mekelle Central, Romanat"
+                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Destination School *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editDestinationSchool}
+                    onChange={(e) => setEditDestinationSchool(e.target.value)}
+                    placeholder="e.g. Atse Yohannes School"
+                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Monthly Price (ETB) *
+                  </label>
+                  <input
+                    type="number"
+                    min={100}
+                    required
+                    value={editMonthlyPrice}
+                    onChange={(e) => setEditMonthlyPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="e.g. 2800"
+                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Morning Departure Time
+                  </label>
+                  <input
+                    type="text"
+                    value={editDepartureTimeMorning}
+                    onChange={(e) => setEditDepartureTimeMorning(e.target.value)}
+                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                    Afternoon Return Time
+                  </label>
+                  <input
+                    type="text"
+                    value={editDepartureTimeAfternoon}
+                    onChange={(e) => setEditDepartureTimeAfternoon(e.target.value)}
+                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '6px', border: '1px solid var(--color-border)' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingRoute(null)}
+                  className="btn btn-secondary btn-sm"
+                  disabled={isUpdatingRoute}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={isUpdatingRoute}
+                >
+                  {isUpdatingRoute ? 'Saving...' : 'Save Route Changes'}
                 </button>
               </div>
             </form>

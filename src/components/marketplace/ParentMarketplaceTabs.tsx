@@ -23,6 +23,7 @@ import {
   apiClient,
   searchTransportationApi,
   getStudentsApi,
+  createStudentApi,
   createTransportationRequestApi,
   getTransportationRequestsApi,
   counterOfferApi,
@@ -82,6 +83,12 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
   const [preferredStartDate, setPreferredStartDate] = useState('');
   const [proposedPrice, setProposedPrice] = useState<number | ''>('');
   const [requestMessage, setRequestMessage] = useState('');
+
+  // Quick Child Registration Form State (Enables typing child directly in modal)
+  const [quickChildName, setQuickChildName] = useState('');
+  const [quickChildGrade, setQuickChildGrade] = useState('');
+  const [quickChildEmergencyPhone, setQuickChildEmergencyPhone] = useState('');
+  const [isAddingNewChildInline, setIsAddingNewChildInline] = useState(false);
 
   // My Requests & Negotiation State
   const [requests, setRequests] = useState<TransportationRequest[]>([]);
@@ -222,6 +229,10 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
     setRequestError(null);
     setRequestSuccess(null);
     setProposedPrice(listing.monthlyPrice);
+    setQuickChildName('');
+    setQuickChildGrade('');
+    setQuickChildEmergencyPhone('');
+    setIsAddingNewChildInline(false);
     if (listing.stops && listing.stops.length > 0) {
       setSelectedPickupStopName(listing.stops[0].name);
     } else {
@@ -236,18 +247,48 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
 
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStudentId) {
-      setRequestError('Please select a student for this transportation request.');
-      return;
-    }
     if (!selectedRoute) return;
 
     setSubmittingRequest(true);
     setRequestError(null);
 
     try {
+      let studentIdToUse = selectedStudentId;
+
+      // If parent has no registered students yet OR wants to add another child inline:
+      if (students.length === 0 || isAddingNewChildInline) {
+        if (!quickChildName.trim()) {
+          setRequestError("Please type your child's full name to continue.");
+          setSubmittingRequest(false);
+          return;
+        }
+
+        const nameParts = quickChildName.trim().split(/\s+/);
+        const firstName = nameParts[0] || 'Child';
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Student';
+
+        const newStudent = await createStudentApi({
+          firstName,
+          lastName,
+          grade: quickChildGrade.trim() || 'General',
+          schoolName: selectedRoute.destinationSchool,
+          schoolBranch: selectedRoute.schoolBranch || 'Main Campus',
+          emergencyPhone: quickChildEmergencyPhone.trim() || undefined,
+        });
+
+        studentIdToUse = newStudent.id;
+        setStudents((prev) => [...prev, newStudent]);
+        setSelectedStudentId(newStudent.id);
+      } else {
+        if (!studentIdToUse) {
+          setRequestError('Please select a student for this transportation request.');
+          setSubmittingRequest(false);
+          return;
+        }
+      }
+
       await createTransportationRequestApi({
-        studentId: selectedStudentId,
+        studentId: studentIdToUse,
         routeId: selectedRoute.routeId,
         pickupStopName: selectedPickupStopName,
         preferredStartDate: preferredStartDate || new Date().toISOString(),
@@ -1007,26 +1048,92 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                       </div>
                     </div>
 
-                    {/* Select Student / Child */}
+                    {/* Select or Type Student / Child */}
                     <div className="filter-group">
-                      <label className="filter-label">Select Student (Child) *</label>
-                      {students.length === 0 ? (
-                        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', padding: '0.5rem', border: '1px dashed var(--color-border)', borderRadius: '6px' }}>
-                          No students registered yet. Please register your child under "My Children" tab first.
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                        <label className="filter-label" style={{ margin: 0 }}>Select Student (Child) *</label>
+                      </div>
+
+                      {students.length === 0 || isAddingNewChildInline ? (
+                        <div style={{ padding: '0.85rem', backgroundColor: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1E293B' }}>
+                              👶 Type Child Details (Auto-registers & books):
+                            </span>
+                            {students.length > 0 && (
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', color: 'var(--color-primary)' }}
+                                onClick={() => setIsAddingNewChildInline(false)}
+                              >
+                                ← Choose from existing ({students.length})
+                              </button>
+                            )}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <div>
+                              <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#475569' }}>Child's Full Name *</label>
+                              <input
+                                type="text"
+                                className="filter-input"
+                                placeholder="e.g. Dawit Kebede"
+                                value={quickChildName}
+                                onChange={(e) => setQuickChildName(e.target.value)}
+                                autoFocus
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#475569' }}>Grade / Class *</label>
+                              <input
+                                type="text"
+                                className="filter-input"
+                                placeholder="e.g. Grade 5"
+                                value={quickChildGrade}
+                                onChange={(e) => setQuickChildGrade(e.target.value)}
+                                required
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#475569' }}>Emergency Contact Phone (Optional)</label>
+                            <input
+                              type="tel"
+                              className="filter-input"
+                              placeholder="e.g. 0912345678"
+                              value={quickChildEmergencyPhone}
+                              onChange={(e) => setQuickChildEmergencyPhone(e.target.value)}
+                            />
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.4rem' }}>
+                            School: <strong>{selectedRoute.destinationSchool}</strong> (Auto-assigned from route)
+                          </div>
                         </div>
                       ) : (
-                        <select
-                          className="filter-input"
-                          value={selectedStudentId}
-                          onChange={(e) => setSelectedStudentId(e.target.value)}
-                          required
-                        >
-                          {students.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.firstName} {s.lastName} ({s.schoolName}{s.grade ? ` - ${s.grade}` : ''})
-                            </option>
-                          ))}
-                        </select>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <select
+                            className="filter-input"
+                            style={{ flex: 1 }}
+                            value={selectedStudentId}
+                            onChange={(e) => setSelectedStudentId(e.target.value)}
+                            required
+                          >
+                            {students.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.firstName} {s.lastName} ({s.schoolName}{s.grade ? ` - ${s.grade}` : ''})
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ whiteSpace: 'nowrap', fontSize: '0.78rem' }}
+                            onClick={() => setIsAddingNewChildInline(true)}
+                          >
+                            + Add Another Child
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -1108,7 +1215,7 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                     <button
                       type="submit"
                       className="btn btn-primary btn-sm"
-                      disabled={submittingRequest || students.length === 0}
+                      disabled={submittingRequest}
                     >
                       {submittingRequest ? 'Submitting...' : 'Submit Seat Request'}
                     </button>
