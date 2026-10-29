@@ -18,6 +18,7 @@ import {
   TransportationRequest,
   ActivePassenger,
 } from '../../types/transportation';
+import { getSocket } from '../../services/socket';
 
 interface ProviderMarketplaceTabsProps {
   activeTab: 'Requests' | 'Passengers';
@@ -26,6 +27,7 @@ interface ProviderMarketplaceTabsProps {
 
 export const ProviderMarketplaceTabs: FC<ProviderMarketplaceTabsProps> = ({
   activeTab,
+  user,
 }) => {
   // Requests State
   const [selectedStatusTab, setSelectedStatusTab] = useState<
@@ -126,6 +128,35 @@ export const ProviderMarketplaceTabs: FC<ProviderMarketplaceTabsProps> = ({
       fetchPassengers();
     }
   }, [activeTab, selectedStatusTab]);
+
+  useEffect(() => {
+    try {
+      const socket = getSocket();
+      if (!socket.connected) socket.connect();
+      const onEvent = () => {
+        if (activeTab === 'Requests') fetchRequests();
+        if (activeTab === 'Passengers') fetchPassengers();
+      };
+      if (user?.id) {
+        socket.on(`notify:${user.id}`, onEvent);
+      }
+      socket.on('transportation:request_received', onEvent);
+      socket.on('transportation:counter_offer', onEvent);
+      socket.on('transportation:offer_accepted', onEvent);
+      socket.on('transportation:request_rejected', onEvent);
+
+      return () => {
+        socket.off('notification', onEvent);
+        if (user?.id) {
+          socket.off(`notify:${user.id}`, onEvent);
+        }
+        socket.off('transportation:request_received', onEvent);
+        socket.off('transportation:counter_offer', onEvent);
+        socket.off('transportation:offer_accepted', onEvent);
+        socket.off('transportation:request_rejected', onEvent);
+      };
+    } catch (_e) {}
+  }, [user?.id, activeTab]);
 
   const handleAcceptRequest = async (requestId: string) => {
     setActionError(null);

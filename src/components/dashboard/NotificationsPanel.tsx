@@ -68,11 +68,21 @@ export const NotificationsPanel: FC<{ user: any }> = ({ user }) => {
       socket.on('notification', handleLiveNotification);
       socket.on(`notify:${user.id}`, handleLiveNotification);
       socket.on('student:boarding_event', handleLiveNotification);
+      socket.on('transportation:request_received', handleLiveNotification);
+      socket.on('transportation:counter_offer', handleLiveNotification);
+      socket.on('transportation:offer_accepted', handleLiveNotification);
+      socket.on('transportation:request_accepted', handleLiveNotification);
+      socket.on('transportation:request_rejected', handleLiveNotification);
 
       return () => {
         socket.off('notification', handleLiveNotification);
         socket.off(`notify:${user.id}`, handleLiveNotification);
         socket.off('student:boarding_event', handleLiveNotification);
+        socket.off('transportation:request_received', handleLiveNotification);
+        socket.off('transportation:counter_offer', handleLiveNotification);
+        socket.off('transportation:offer_accepted', handleLiveNotification);
+        socket.off('transportation:request_accepted', handleLiveNotification);
+        socket.off('transportation:request_rejected', handleLiveNotification);
       };
     } catch (_err) {
       // Silent catch

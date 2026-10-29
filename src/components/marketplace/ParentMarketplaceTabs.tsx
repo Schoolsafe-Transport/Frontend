@@ -233,6 +233,10 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
     setQuickChildGrade('');
     setQuickChildEmergencyPhone('');
     setIsAddingNewChildInline(false);
+    if (students.length > 0 && !selectedStudentId) {
+      setSelectedStudentId(students[0].id);
+    }
+    fetchStudents();
     if (listing.stops && listing.stops.length > 0) {
       setSelectedPickupStopName(listing.stops[0].name);
     } else {
@@ -253,7 +257,7 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
     setRequestError(null);
 
     try {
-      let studentIdToUse = selectedStudentId;
+      let studentIdToUse = selectedStudentId || (students.length > 0 ? students[0].id : '');
 
       // If parent has no registered students yet OR wants to add another child inline:
       if (students.length === 0 || isAddingNewChildInline) {

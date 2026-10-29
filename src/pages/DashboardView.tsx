@@ -66,7 +66,9 @@ import {
   AdminPlatformStats,
   getAdminSafetyIncidentsApi,
   resolveAdminIncidentApi,
+  getNotificationsApi,
 } from '../services/api';
+import { getSocket } from '../services/socket';
 import { AdminApplicationsQueue } from '../components/dashboard/AdminApplicationsQueue';
 import { AdminPaymentsReview } from '../components/dashboard/AdminPaymentsReview';
 import { BusinessCampaignManager } from '../components/dashboard/BusinessCampaignManager';
@@ -81,6 +83,47 @@ interface DashboardViewProps {
 export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => {
   const { user, logout } = useAuth();
   const [showFaydaModal, setShowFaydaModal] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchUnread = async () => {
+      try {
+        const res = await getNotificationsApi(10);
+        setUnreadNotificationsCount(res?.unreadCount || 0);
+      } catch (_e) {}
+    };
+    fetchUnread();
+
+    try {
+      const socket = getSocket();
+      if (!socket.connected) socket.connect();
+      const token = localStorage.getItem('schoolsafe_access_token');
+      socket.emit('join_user', { userId: user.id, token });
+
+      const onNotify = () => {
+        fetchUnread();
+      };
+
+      socket.on('notification', onNotify);
+      socket.on(`notify:${user.id}`, onNotify);
+      socket.on('transportation:request_received', onNotify);
+      socket.on('transportation:counter_offer', onNotify);
+      socket.on('transportation:offer_accepted', onNotify);
+      socket.on('transportation:request_accepted', onNotify);
+      socket.on('transportation:request_rejected', onNotify);
+
+      return () => {
+        socket.off('notification', onNotify);
+        socket.off(`notify:${user.id}`, onNotify);
+        socket.off('transportation:request_received', onNotify);
+        socket.off('transportation:counter_offer', onNotify);
+        socket.off('transportation:offer_accepted', onNotify);
+        socket.off('transportation:request_accepted', onNotify);
+        socket.off('transportation:request_rejected', onNotify);
+      };
+    } catch (_e) {}
+  }, [user?.id]);
 
   if (!user) return null;
 
@@ -88,7 +131,6 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
   if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
     return <AdminDashboardRoot />;
   }
-
 
   const actorType: MVPActor = normalizeToMVPActor(user.role);
   const actorDisplayName = getActorDisplayName(user.role);
@@ -178,27 +220,71 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
             </div>
           </div>
 
-          {/* Prominent, Responsive Sign Out Button */}
-          <button
-            onClick={logout}
-            className="btn btn-secondary btn-sm"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              fontWeight: 600,
-              flexShrink: 0,
-              padding: '0.45rem 0.85rem',
-              borderRadius: '8px',
-              border: '1.5px solid var(--color-border)',
-              backgroundColor: '#FFFFFF',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-            }}
-            title="Sign out of your SchoolSafe account"
-          >
-            <LogOut size={15} style={{ color: '#DC2626' }} />
-            <span style={{ fontWeight: 600 }}>Sign Out</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            {/* Quick Notification Bell */}
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('navigate_dashboard_tab', { detail: 'Notifications' }));
+              }}
+              className="btn btn-secondary btn-sm"
+              style={{
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0.45rem 0.65rem',
+                borderRadius: '8px',
+                border: '1.5px solid var(--color-border)',
+                backgroundColor: '#FFFFFF',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+              title="Notifications"
+            >
+              <Bell size={16} style={{ color: 'var(--color-primary)' }} />
+              {unreadNotificationsCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-4px',
+                    backgroundColor: 'var(--color-danger)',
+                    color: '#fff',
+                    borderRadius: '10px',
+                    padding: '1px 5px',
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    lineHeight: '1',
+                  }}
+                >
+                  {unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+
+            {/* Prominent, Responsive Sign Out Button */}
+            <button
+              onClick={logout}
+              className="btn btn-secondary btn-sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontWeight: 600,
+                flexShrink: 0,
+                padding: '0.45rem 0.85rem',
+                borderRadius: '8px',
+                border: '1.5px solid var(--color-border)',
+                backgroundColor: '#FFFFFF',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+              }}
+              title="Sign out of your SchoolSafe account"
+            >
+              <LogOut size={15} style={{ color: '#DC2626' }} />
+              <span style={{ fontWeight: 600 }}>Sign Out</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -244,11 +330,12 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
       {actorType === 'PARENT' && (
         <ParentDashboardView
           user={user}
+          unreadNotifications={unreadNotificationsCount}
           onOpenFaydaModal={() => setShowFaydaModal(true)}
           onOpenVerifyPage={onOpenVerifyFayda}
         />
       )}
-      {actorType === 'TRANSPORT_PROVIDER_DRIVER' && <ProviderDashboardView user={user} />}
+      {actorType === 'TRANSPORT_PROVIDER_DRIVER' && <ProviderDashboardView user={user} unreadNotifications={unreadNotificationsCount} />}
       {actorType === 'BUSINESS' && <BusinessDashboardView user={user} />}
       {actorType === 'ADMIN' && <AdminDashboardView user={user} />}
       {actorType === 'STUDENT' && <StudentDashboardView user={user} />}
@@ -268,12 +355,23 @@ export const DashboardView: FC<DashboardViewProps> = ({ onOpenVerifyFayda }) => 
    ========================================================================= */
 const ParentDashboardView: FC<{
   user: any;
+  unreadNotifications?: number;
   onOpenFaydaModal?: () => void;
   onOpenVerifyPage?: () => void;
-}> = ({ user, onOpenFaydaModal: _onOpenFaydaModal, onOpenVerifyPage: _onOpenVerifyPage }) => {
+}> = ({ user, unreadNotifications = 0, onOpenFaydaModal: _onOpenFaydaModal, onOpenVerifyPage: _onOpenVerifyPage }) => {
   const [activeTab, setActiveTab] = useState<
     'Dashboard' | 'My Children' | 'Find Transportation' | 'My Requests' | 'My Transportation' | 'Trips' | 'Notifications' | 'Payments' | 'Safety' | 'Profile'
   >('Dashboard');
+
+  useEffect(() => {
+    const handleNav = (e: any) => {
+      if (e.detail) {
+        setActiveTab(e.detail);
+      }
+    };
+    window.addEventListener('navigate_dashboard_tab', handleNav);
+    return () => window.removeEventListener('navigate_dashboard_tab', handleNav);
+  }, []);
 
   const [students, setStudents] = useState<any[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(true);
@@ -428,8 +526,12 @@ const ParentDashboardView: FC<{
                 {tab === 'Notifications' && <Bell size={16} />}
                 {tab === 'Payments' && <CreditCard size={16} />}
                 {tab === 'Safety' && <Shield size={16} />}
-                {tab === 'Profile' && <UserCheck size={16} />}
                 {tab}
+                {tab === 'Notifications' && unreadNotifications > 0 && (
+                  <span style={{ marginLeft: '4px', padding: '2px 6px', borderRadius: '10px', fontSize: '0.75rem', backgroundColor: 'var(--color-danger)', color: '#fff' }}>
+                    {unreadNotifications}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -1307,10 +1409,20 @@ const ParentDashboardView: FC<{
    2. TRANSPORT PROVIDER / DRIVER DASHBOARD
    Navigation: Dashboard | Fleet | Routes | Requests | Trips | Earnings | Verification | Profile
    ========================================================================= */
-const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
+const ProviderDashboardView: FC<{ user: any; unreadNotifications?: number }> = ({ user, unreadNotifications = 0 }) => {
   const [activeTab, setActiveTab] = useState<
     'Dashboard' | 'Fleet' | 'Routes' | 'Requests' | 'Passengers' | 'Trips' | 'Notifications' | 'Earnings' | 'Verification' | 'Profile'
   >('Dashboard');
+
+  useEffect(() => {
+    const handleNav = (e: any) => {
+      if (e.detail) {
+        setActiveTab(e.detail);
+      }
+    };
+    window.addEventListener('navigate_dashboard_tab', handleNav);
+    return () => window.removeEventListener('navigate_dashboard_tab', handleNav);
+  }, []);
 
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
@@ -1368,14 +1480,41 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
 
   useEffect(() => {
     loadProviderData();
-  }, []);
+
+    try {
+      const socket = getSocket();
+      if (!socket.connected) socket.connect();
+      const token = localStorage.getItem('schoolsafe_access_token');
+      socket.emit('join_user', { userId: user.id, token });
+
+      const onUpdate = () => {
+        loadProviderData();
+      };
+
+      socket.on('notification', onUpdate);
+      socket.on(`notify:${user.id}`, onUpdate);
+      socket.on('transportation:request_received', onUpdate);
+      socket.on('transportation:counter_offer', onUpdate);
+      socket.on('transportation:offer_accepted', onUpdate);
+      socket.on('transportation:request_rejected', onUpdate);
+
+      return () => {
+        socket.off('notification', onUpdate);
+        socket.off(`notify:${user.id}`, onUpdate);
+        socket.off('transportation:request_received', onUpdate);
+        socket.off('transportation:counter_offer', onUpdate);
+        socket.off('transportation:offer_accepted', onUpdate);
+        socket.off('transportation:request_rejected', onUpdate);
+      };
+    } catch (_e) {}
+  }, [user?.id]);
 
   const handleAcceptRequest = async (requestId: string) => {
     try {
       setActionLoadingId(requestId);
       await acceptRequestApi(requestId);
       const res = await getTransportationRequestsApi();
-      setRequests(res.requests || []);
+      setRequests(Array.isArray(res) ? res : (res?.requests || []));
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to accept seat request.');
     } finally {
@@ -1389,7 +1528,7 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
       setActionLoadingId(requestId);
       await rejectRequestApi(requestId, reason || undefined);
       const res = await getTransportationRequestsApi();
-      setRequests(res.requests || []);
+      setRequests(Array.isArray(res) ? res : (res?.requests || []));
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to decline seat request.');
     } finally {
@@ -1485,6 +1624,11 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
                     {pendingRequests.length}
                   </span>
                 )}
+                {tab === 'Notifications' && unreadNotifications > 0 && (
+                  <span style={{ marginLeft: '4px', padding: '2px 6px', borderRadius: '10px', fontSize: '0.75rem', backgroundColor: 'var(--color-danger)', color: '#fff' }}>
+                    {unreadNotifications}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -1516,71 +1660,70 @@ const ProviderDashboardView: FC<{ user: any }> = ({ user }) => {
           </div>
         )}
 
-        {/* Real Overview Stats - Clickable to navigate tabs */}
-        <div className="stats-grid">
-          <div
-            className="stat-card"
-            onClick={() => setActiveTab('Fleet')}
-            style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
-            title="Click to view and manage Fleet Vehicles"
-          >
-            <div className="stat-header">
-              <span>Fleet</span>
-              <Car size={18} style={{ color: 'var(--color-primary)' }} />
-            </div>
-            <div className="stat-value">{vehicles.length} Vehicles</div>
-            <div className="stat-subtext">
-              {vehicles.length > 0
-                ? vehicles.map((v) => `${v.make} ${v.model}`).slice(0, 2).join(', ')
-                : 'Manage vehicle fleet →'}
-            </div>
-          </div>
-
-          <div
-            className="stat-card"
-            onClick={() => setActiveTab('Routes')}
-            style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
-            title="Click to view and manage School Routes"
-          >
-            <div className="stat-header">
-              <span>Routes</span>
-              <MapPin size={18} style={{ color: 'var(--color-accent)' }} />
-            </div>
-            <div className="stat-value">{activeRoutes.length} Active</div>
-            <div className="stat-subtext">{routes.length > 0 ? `${routes.length} configured routes →` : 'Set up routes →'}</div>
-          </div>
-
-          <div
-            className="stat-card"
-            onClick={() => setActiveTab('Requests')}
-            style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
-            title="Click to view seat requests"
-          >
-            <div className="stat-header">
-              <span>Transportation Requests</span>
-              <Users size={18} style={{ color: 'var(--color-warning)' }} />
-            </div>
-            <div className="stat-value">{pendingRequests.length} Pending</div>
-            <div className="stat-subtext">Review parent seat requests →</div>
-          </div>
-
-          <div
-            className="stat-card"
-            onClick={() => setActiveTab('Trips')}
-            style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
-            title="Click to manage Daily Trips & Boarding"
-          >
-            <div className="stat-header">
-              <span>Today's Trips</span>
-              <Bus size={18} style={{ color: 'var(--color-success)' }} />
-            </div>
-            <div className="stat-value">{trips.length} Trips</div>
-            <div className="stat-subtext">Active dispatch runs →</div>
-          </div>
-        </div>
-
         {activeTab === 'Dashboard' && (
           <>
+            {/* Real Overview Stats - Clickable to navigate tabs (Dashboard tab only) */}
+            <div className="stats-grid">
+              <div
+                className="stat-card"
+                onClick={() => setActiveTab('Fleet')}
+                style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+                title="Click to view and manage Fleet Vehicles"
+              >
+                <div className="stat-header">
+                  <span>Fleet</span>
+                  <Car size={18} style={{ color: 'var(--color-primary)' }} />
+                </div>
+                <div className="stat-value">{vehicles.length} Vehicles</div>
+                <div className="stat-subtext">
+                  {vehicles.length > 0
+                    ? vehicles.map((v) => `${v.make} ${v.model}`).slice(0, 2).join(', ')
+                    : 'Manage vehicle fleet →'}
+                </div>
+              </div>
+
+              <div
+                className="stat-card"
+                onClick={() => setActiveTab('Routes')}
+                style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+                title="Click to view and manage School Routes"
+              >
+                <div className="stat-header">
+                  <span>Routes</span>
+                  <MapPin size={18} style={{ color: 'var(--color-accent)' }} />
+                </div>
+                <div className="stat-value">{activeRoutes.length} Active</div>
+                <div className="stat-subtext">{routes.length > 0 ? `${routes.length} configured routes →` : 'Set up routes →'}</div>
+              </div>
+
+              <div
+                className="stat-card"
+                onClick={() => setActiveTab('Requests')}
+                style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+                title="Click to view seat requests"
+              >
+                <div className="stat-header">
+                  <span>Transportation Requests</span>
+                  <Users size={18} style={{ color: 'var(--color-warning)' }} />
+                </div>
+                <div className="stat-value">{pendingRequests.length} Pending</div>
+                <div className="stat-subtext">Review parent seat requests →</div>
+              </div>
+
+              <div
+                className="stat-card"
+                onClick={() => setActiveTab('Trips')}
+                style={{ cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+                title="Click to manage Daily Trips & Boarding"
+              >
+                <div className="stat-header">
+                  <span>Today's Trips</span>
+                  <Bus size={18} style={{ color: 'var(--color-success)' }} />
+                </div>
+                <div className="stat-value">{trips.length} Trips</div>
+                <div className="stat-subtext">Active dispatch runs →</div>
+              </div>
+            </div>
             {/* Today's Transit Manifest */}
             <div className="panel-card">
               <div className="panel-header">
