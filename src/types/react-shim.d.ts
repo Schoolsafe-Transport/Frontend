@@ -11,6 +11,8 @@ declare module 'react' {
   export function useContext<T>(context: any): T;
   export function createContext<T>(defaultValue: T): any;
   export function useRef<T = any>(initialValue?: T | null): { current: T };
+  export function useCallback<T extends (...args: any[]) => any>(callback: T, deps?: any[]): T;
+  export function useMemo<T>(factory: () => T, deps?: any[]): T;
   export const StrictMode: any;
   export interface FormEvent<T = any> {
     preventDefault(): void;

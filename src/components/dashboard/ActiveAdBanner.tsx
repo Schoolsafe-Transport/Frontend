@@ -142,7 +142,7 @@ export const ActiveAdBanner: FC<ActiveAdBannerProps> = ({ onFindTransportation }
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: '280px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 'min(100%, 260px)' }}>
           <div
             style={{
               width: '48px',
@@ -235,7 +235,7 @@ export const ActiveAdBanner: FC<ActiveAdBannerProps> = ({ onFindTransportation }
         e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)';
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1, minWidth: '260px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1, minWidth: 'min(100%, 240px)' }}>
         {/* Media creative: Video or Image */}
         {currentAd.bannerUrl && (
           isVideoUrl(currentAd.bannerUrl) ? (

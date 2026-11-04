@@ -189,7 +189,7 @@ export const UserProfilePanel: FC<ProfilePanelProps> = ({ user, onUserUpdated })
           )}
 
           <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-grid-2">
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem' }}>First Name</label>
                 <input

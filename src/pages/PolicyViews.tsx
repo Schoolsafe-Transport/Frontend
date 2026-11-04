@@ -7,7 +7,7 @@ interface PolicyViewProps {
 
 export const PrivacyPolicyView: FC<PolicyViewProps> = ({ onNavigateHome }) => {
   return (
-    <div className="container" style={{ padding: '4rem 1.5rem', maxWidth: '850px' }}>
+    <div className="container page-section-container" style={{ maxWidth: '850px' }}>
       <button className="btn btn-ghost btn-sm" onClick={onNavigateHome} style={{ marginBottom: '1.5rem', display: 'inline-flex', gap: '0.4rem' }}>
         <ArrowLeft size={16} /> Back to Home
       </button>
@@ -57,7 +57,7 @@ export const PrivacyPolicyView: FC<PolicyViewProps> = ({ onNavigateHome }) => {
 
 export const TermsOfServiceView: FC<PolicyViewProps> = ({ onNavigateHome }) => {
   return (
-    <div className="container" style={{ padding: '4rem 1.5rem', maxWidth: '850px' }}>
+    <div className="container page-section-container" style={{ maxWidth: '850px' }}>
       <button className="btn btn-ghost btn-sm" onClick={onNavigateHome} style={{ marginBottom: '1.5rem', display: 'inline-flex', gap: '0.4rem' }}>
         <ArrowLeft size={16} /> Back to Home
       </button>
@@ -132,7 +132,7 @@ export const HelpCenterView: FC<PolicyViewProps> = ({ onNavigateHome }) => {
   ];
 
   return (
-    <div className="container" style={{ padding: '4rem 1.5rem', maxWidth: '850px' }}>
+    <div className="container page-section-container" style={{ maxWidth: '850px' }}>
       <button className="btn btn-ghost btn-sm" onClick={onNavigateHome} style={{ marginBottom: '1.5rem', display: 'inline-flex', gap: '0.4rem' }}>
         <ArrowLeft size={16} /> Back to Home
       </button>
@@ -141,7 +141,7 @@ export const HelpCenterView: FC<PolicyViewProps> = ({ onNavigateHome }) => {
         <div style={{ display: 'inline-flex', padding: '10px', borderRadius: '10px', backgroundColor: 'var(--color-accent-light)', color: 'var(--color-accent)', marginBottom: '0.75rem' }}>
           <HelpCircle size={28} />
         </div>
-        <h1 style={{ color: 'var(--color-primary)', fontSize: '2.5rem', marginBottom: '0.75rem' }}>
+        <h1 style={{ color: 'var(--color-primary)', marginBottom: '0.75rem' }}>
           Help Center & FAQs
         </h1>
         <p style={{ color: 'var(--color-text-secondary)', fontSize: '1.1rem' }}>

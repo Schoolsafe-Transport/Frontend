@@ -1254,7 +1254,7 @@ const ParentDashboardView: FC<{
             )}
 
             <form onSubmit={handleRegisterChild} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="form-grid-2">
                 <div>
                   <label className="filter-label" style={{ fontWeight: 600 }}>First Name *</label>
                   <input
@@ -1291,7 +1291,7 @@ const ParentDashboardView: FC<{
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="form-grid-2">
                 <div>
                   <label className="filter-label">School Branch / Campus</label>
                   <input
@@ -1336,7 +1336,7 @@ const ParentDashboardView: FC<{
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="form-grid-2">
                 <div>
                   <label className="filter-label">Gender</label>
                   <select
@@ -1864,7 +1864,7 @@ const ProviderDashboardView: FC<{ user: any; unreadNotifications?: number }> = (
             <div className="panel-header">
               <h3 className="panel-title">Earnings & Monthly Revenue</h3>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '1.5rem' }}>
+            <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
               <div style={{ padding: '1.25rem', backgroundColor: '#F8FAFC', borderRadius: '8px' }}>
                 <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Estimated Monthly Volume</div>
                 <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-primary)' }}>
@@ -2197,7 +2197,7 @@ const BusinessDashboardView: FC<{ user: any }> = ({ user }) => {
                   {user.status === 'ACTIVE' ? 'Approved Partner ✓' : user.status}
                 </span>
               </div>
-              <div style={{ maxWidth: '650px', display: 'grid', gridTemplateColumns: '180px 1fr', gap: '1rem', fontSize: '0.925rem' }}>
+              <div className="responsive-form-grid" style={{ maxWidth: '650px', gap: '0.85rem', fontSize: '0.925rem' }}>
                 <span style={{ color: 'var(--color-text-secondary)' }}>Company / Brand:</span>
                 <span style={{ fontWeight: 600 }}>{user.businessName || 'Not specified'}</span>
 
@@ -2597,40 +2597,42 @@ const AdminDashboardView: FC<{ user: any }> = ({ user }) => {
                 <p style={{ margin: 0, fontSize: '0.9rem' }}>No open safety incidents on record. All routes operational.</p>
               </div>
             ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Incident ID</th>
-                    <th>Report Type</th>
-                    <th>Details</th>
-                    <th>Status</th>
-                    <th>Reported At</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {incidents.map((inc) => (
-                    <tr key={inc.id}>
-                      <td><strong>#{inc.id.slice(0, 8)}</strong></td>
-                      <td><span className="badge-status pending">{inc.incidentType || 'Safety Alert'}</span></td>
-                      <td>{inc.description}</td>
-                      <td><span className={`badge-status ${inc.status === 'RESOLVED' ? 'active' : 'pending'}`}>{inc.status}</span></td>
-                      <td>{new Date(inc.createdAt).toLocaleString()}</td>
-                      <td>
-                        {inc.status !== 'RESOLVED' && (
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            disabled={resolvingId === inc.id}
-                            onClick={() => handleResolveIncident(inc.id)}
-                          >
-                            {resolvingId === inc.id ? <Loader2 size={12} className="animate-spin" /> : 'Resolve'}
-                          </button>
-                        )}
-                      </td>
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Incident ID</th>
+                      <th>Report Type</th>
+                      <th>Details</th>
+                      <th>Status</th>
+                      <th>Reported At</th>
+                      <th>Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {incidents.map((inc) => (
+                      <tr key={inc.id}>
+                        <td><strong>#{inc.id.slice(0, 8)}</strong></td>
+                        <td><span className="badge-status pending">{inc.incidentType || 'Safety Alert'}</span></td>
+                        <td>{inc.description}</td>
+                        <td><span className={`badge-status ${inc.status === 'RESOLVED' ? 'active' : 'pending'}`}>{inc.status}</span></td>
+                        <td>{new Date(inc.createdAt).toLocaleString()}</td>
+                        <td>
+                          {inc.status !== 'RESOLVED' && (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              disabled={resolvingId === inc.id}
+                              onClick={() => handleResolveIncident(inc.id)}
+                            >
+                              {resolvingId === inc.id ? <Loader2 size={12} className="animate-spin" /> : 'Resolve'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}

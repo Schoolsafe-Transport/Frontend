@@ -134,6 +134,7 @@ export const PrintableTransportPassModal: FC<PrintableTransportPassModalProps> =
       `}</style>
 
       <div
+        className="modal-card"
         style={{
           width: '100%',
           maxWidth: '560px',

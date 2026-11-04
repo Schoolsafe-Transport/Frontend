@@ -529,7 +529,8 @@ export const ProviderMarketplaceTabs: FC<ProviderMarketplaceTabsProps> = ({
               No active passengers yet. Accept incoming requests to establish student agreements.
             </div>
           ) : (
-            <table className="data-table">
+            <div className="table-responsive">
+              <table className="data-table">
               <thead>
                 <tr>
                   <th>Student Name</th>
@@ -617,7 +618,8 @@ export const ProviderMarketplaceTabs: FC<ProviderMarketplaceTabsProps> = ({
                 })}
               </tbody>
             </table>
-          )}
+          </div>
+        )}
         </div>
       )}
 

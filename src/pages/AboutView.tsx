@@ -32,7 +32,7 @@ export const AboutView: FC<AboutViewProps> = ({ onNavigateHome, onOpenRegister }
             >
               <Sparkles size={14} /> Our Mission & Community
             </div>
-            <h1 style={{ fontSize: '2.75rem', color: 'var(--color-primary)', marginBottom: '1.25rem' }}>
+            <h1 style={{ color: 'var(--color-primary)', marginBottom: '1.25rem' }}>
               Building the Future of Safe School Transportation
             </h1>
             <p style={{ fontSize: '1.2rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>

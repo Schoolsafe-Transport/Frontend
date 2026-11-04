@@ -131,7 +131,7 @@ export const EmailVerificationView: FC<EmailVerificationViewProps> = ({
   };
 
   return (
-    <div className="card" style={{ maxWidth: '520px', margin: '2rem auto', padding: '2.5rem' }}>
+    <div className="card auth-box" style={{ maxWidth: '520px', margin: '1.5rem auto' }}>
       <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
         <div
           style={{

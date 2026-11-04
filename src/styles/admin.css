@@ -836,6 +836,11 @@
 
   .admin-header-subtitle {
     font-size: 0.75rem;
+    display: none;
+  }
+
+  .hidden-sm {
+    display: none !important;
   }
 
   .admin-stats-grid {

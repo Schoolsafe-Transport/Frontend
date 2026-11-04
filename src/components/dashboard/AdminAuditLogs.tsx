@@ -63,7 +63,7 @@ export const AdminAuditLogs: FC = () => {
           </p>
         </div>
 
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: '280px' }}>
           <Search
             size={14}
             style={{ position: 'absolute', left: '10px', top: '10px', color: '#94a3b8' }}
@@ -74,7 +74,7 @@ export const AdminAuditLogs: FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="input-field"
-            style={{ paddingLeft: '32px', fontSize: '0.8rem', height: '34px', width: '260px' }}
+            style={{ paddingLeft: '32px', fontSize: '0.8rem', height: '34px', width: '100%' }}
           />
         </div>
       </div>

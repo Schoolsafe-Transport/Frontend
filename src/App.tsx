@@ -292,7 +292,7 @@ const MainContent: FC = () => {
           </header>
           <main style={{ flex: 1, padding: '3rem 1rem' }}>
             <div className="container" style={{ maxWidth: '520px', textAlign: 'center' }}>
-              <div className="panel-card" style={{ padding: '2.5rem' }}>
+              <div className="panel-card auth-box" style={{ maxWidth: '520px', margin: '0 auto' }}>
                 <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#EFF6FF', color: '#2563EB', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
                   <ShieldCheck size={28} />
                 </div>
@@ -332,7 +332,7 @@ const MainContent: FC = () => {
           </header>
           <main style={{ flex: 1, padding: '3rem 1rem' }}>
             <div className="container" style={{ maxWidth: '520px', textAlign: 'center' }}>
-              <div className="panel-card" style={{ padding: '2.5rem' }}>
+              <div className="panel-card auth-box" style={{ maxWidth: '520px', margin: '0 auto' }}>
                 <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#FEF2F2', color: '#DC2626', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
                   <AlertTriangle size={28} />
                 </div>

@@ -519,7 +519,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
   ];
 
   return (
-    <div className="auth-box" style={{ maxWidth: '640px', width: '100%', padding: '2.5rem' }}>
+    <div className="auth-box" style={{ maxWidth: '640px', width: '100%' }}>
       {/* Wizard Brand Header */}
       <div className="auth-header" style={{ marginBottom: '1.5rem' }}>
         <div className="auth-brand-logo-wrap">
@@ -692,7 +692,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+          <div className="form-grid-2" style={{ gap: '0.85rem' }}>
             <div className="form-group">
               <label htmlFor="reg-first-name">First Name *</label>
               <input
@@ -1092,7 +1092,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
                 <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--color-primary)' }}>
                   Register Your First Child (Optional - can also be added later)
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div className="form-grid-2" style={{ gap: '0.75rem' }}>
                   <div className="form-group">
                     <label>Child First Name</label>
                     <input
@@ -1115,7 +1115,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.8fr', gap: '0.75rem', marginTop: '0.75rem' }}>
+                <div className="form-grid-2" style={{ gap: '0.75rem', marginTop: '0.75rem' }}>
                   <div className="form-group">
                     <label>School Name</label>
                     <input
@@ -1160,7 +1160,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="form-grid-2" style={{ gap: '0.75rem' }}>
                 <div className="form-group">
                   <label>Driver License Number *</label>
                   <input
@@ -1208,7 +1208,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
                   Primary Vehicle Details
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div className="form-grid-2" style={{ gap: '0.75rem' }}>
                   <div className="form-group">
                     <label>Vehicle License Plate</label>
                     <input
@@ -1257,7 +1257,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
                     Primary Route & Service Fee (From What Start, Destination & Price)
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div className="form-grid-2" style={{ gap: '0.75rem' }}>
                     <div className="form-group">
                       <label>Route Starting Point (Origin) *</label>
                       <input
@@ -1315,7 +1315,7 @@ export const RegisterView: FC<RegisterViewProps> = ({
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="form-grid-2" style={{ gap: '0.75rem' }}>
                 <div className="form-group">
                   <label>Contact Person *</label>
                   <input

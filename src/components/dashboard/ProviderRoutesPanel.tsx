@@ -277,81 +277,83 @@ export const ProviderRoutesPanel: FC<{ user: any }> = ({ user }) => {
           </button>
         </div>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Route Name</th>
-              <th>Destination School</th>
-              <th>Assigned Vehicle</th>
-              <th>Service Timing</th>
-              <th>Seats (Available / Total)</th>
-              <th>Monthly Price</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {routes.map((r) => (
-              <tr key={r.id}>
-                <td>
-                  <strong>{r.name}</strong>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                    Origin: {r.origin}
-                  </div>
-                </td>
-                <td>{r.destinationSchool}</td>
-                <td>
-                  {r.vehicle?.make} {r.vehicle?.model}
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                    Plate: {r.vehicle?.plateNumber}
-                  </div>
-                </td>
-                <td>
-                  <div style={{ fontSize: '0.85rem' }}>
-                    Morning: {r.departureTimeMorning || '07:00 AM'}
-                  </div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
-                    Afternoon: {r.departureTimeAfternoon || '15:30 PM'}
-                  </div>
-                </td>
-                <td>
-                  <strong style={{ color: r.availableSeats > 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                    {r.availableSeats}
-                  </strong>{' '}
-                  / {r.capacity} Seats
-                </td>
-                <td>
-                  <strong>ETB {r.monthlyPrice.toLocaleString()}</strong> / mo
-                </td>
-                <td>
-                  <span className={`badge-status ${r.status === 'ACTIVE' ? 'active' : 'pending'}`}>
-                    {r.status}
-                  </span>
-                </td>
-                <td>
-                  <div style={{ display: 'flex', gap: '0.35rem' }}>
-                    <button
-                      onClick={() => handleOpenEditRoute(r)}
-                      className="btn btn-ghost btn-sm"
-                      style={{ color: 'var(--color-primary)', padding: '0.25rem 0.5rem' }}
-                      title="Edit Route (Origin, Destination, Price)"
-                    >
-                      <Edit3 size={15} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteRoute(r.id, r.name)}
-                      className="btn btn-ghost btn-sm"
-                      style={{ color: 'var(--color-danger)', padding: '0.25rem 0.5rem' }}
-                      title="Remove Route"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </td>
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Route Name</th>
+                <th>Destination School</th>
+                <th>Assigned Vehicle</th>
+                <th>Service Timing</th>
+                <th>Seats (Available / Total)</th>
+                <th>Monthly Price</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {routes.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <strong>{r.name}</strong>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                      Origin: {r.origin}
+                    </div>
+                  </td>
+                  <td>{r.destinationSchool}</td>
+                  <td>
+                    {r.vehicle?.make} {r.vehicle?.model}
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                      Plate: {r.vehicle?.plateNumber}
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ fontSize: '0.85rem' }}>
+                      Morning: {r.departureTimeMorning || '07:00 AM'}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                      Afternoon: {r.departureTimeAfternoon || '15:30 PM'}
+                    </div>
+                  </td>
+                  <td>
+                    <strong style={{ color: r.availableSeats > 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                      {r.availableSeats}
+                    </strong>{' '}
+                    / {r.capacity} Seats
+                  </td>
+                  <td>
+                    <strong>ETB {r.monthlyPrice.toLocaleString()}</strong> / mo
+                  </td>
+                  <td>
+                    <span className={`badge-status ${r.status === 'ACTIVE' ? 'active' : 'pending'}`}>
+                      {r.status}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '0.35rem' }}>
+                      <button
+                        onClick={() => handleOpenEditRoute(r)}
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: 'var(--color-primary)', padding: '0.25rem 0.5rem' }}
+                        title="Edit Route (Origin, Destination, Price)"
+                      >
+                        <Edit3 size={15} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRoute(r.id, r.name)}
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: 'var(--color-danger)', padding: '0.25rem 0.5rem' }}
+                        title="Remove Route"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {/* Create Route Modal */}

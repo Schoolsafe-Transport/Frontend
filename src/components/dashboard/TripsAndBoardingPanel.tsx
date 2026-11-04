@@ -482,7 +482,8 @@ export const TripsAndBoardingPanel: FC<{ user?: any; isParent?: boolean }> = ({
                     No students currently assigned to this transit route. Enrolled agreements will populate here automatically.
                   </div>
                 ) : (
-                  <table className="data-table" style={{ margin: 0 }}>
+                  <div className="table-responsive" style={{ margin: 0 }}>
+                    <table className="data-table" style={{ margin: 0 }}>
                     <thead>
                       <tr>
                         <th>Student Name</th>
@@ -576,7 +577,8 @@ export const TripsAndBoardingPanel: FC<{ user?: any; isParent?: boolean }> = ({
                       ))}
                     </tbody>
                   </table>
-                )}
+                </div>
+              )}
               </div>
             </div>
           )}

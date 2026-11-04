@@ -565,7 +565,7 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
               </label>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem', gridColumn: 'span 2' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', gridColumn: '1 / -1', flexWrap: 'wrap' }}>
               <button
                 className="btn btn-primary"
                 style={{ flex: 1, gap: '0.4rem', justifyContent: 'center' }}
@@ -1075,7 +1075,7 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                               </button>
                             )}
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <div className="form-grid-2" style={{ gap: '0.5rem', marginBottom: '0.5rem' }}>
                             <div>
                               <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#475569' }}>Child's Full Name *</label>
                               <input
@@ -1170,7 +1170,7 @@ export const ParentMarketplaceTabs: FC<ParentMarketplaceTabsProps> = ({
                     </div>
 
                     {/* Preferred Start Date & Negotiation Offer */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-grid-2">
                       <div className="filter-group">
                         <label className="filter-label">Preferred Start Date</label>
                         <input

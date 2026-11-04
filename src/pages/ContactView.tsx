@@ -18,12 +18,12 @@ export const ContactView: FC<ContactViewProps> = ({ onNavigateHome }) => {
   };
 
   return (
-    <div className="container" style={{ padding: '4rem 1.5rem', maxWidth: '1000px' }}>
+    <div className="container page-section-container" style={{ maxWidth: '1000px' }}>
       <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
         <span className="section-tag" style={{ backgroundColor: 'var(--color-accent-light)', color: 'var(--color-accent)' }}>
           GET IN TOUCH
         </span>
-        <h1 style={{ color: 'var(--color-primary)', fontSize: '2.5rem', marginTop: '0.5rem', marginBottom: '0.75rem' }}>
+        <h1 style={{ color: 'var(--color-primary)', marginTop: '0.5rem', marginBottom: '0.75rem' }}>
           Contact the SchoolSafe Team
         </h1>
         <p style={{ color: 'var(--color-text-secondary)', fontSize: '1.1rem', maxWidth: '640px', margin: '0 auto' }}>
