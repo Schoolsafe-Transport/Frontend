@@ -12,6 +12,7 @@
 > **Student / CTC ID**: **CTC-826-26**  
 > **Contact Email**: `rahelnaba716@gmail.com`  
 > **🌐 Live Web Application**: [https://schoolsafe-eight.vercel.app](https://schoolsafe-eight.vercel.app)  
+> **🎬 5-Minute Video Walkthrough**: [Watch on Google Drive](https://drive.google.com/file/d/1rAPgODBVxondDl2O74AAxkz4NDzEoVsq/view?usp=drivesdk)  
 > **Academic Year**: 2025/2026  
 
 ---
@@ -598,14 +599,16 @@ This project is submitted in fulfillment of the final graduation capstone requir
 
 ### 1. Live Deployment & Repository Links
 - **🌐 Live Production Web App**: [https://schoolsafe-eight.vercel.app](https://schoolsafe-eight.vercel.app)
-- **Primary Monorepo**: `[Insert Primary Monorepo Link, e.g., https://github.com/Schoolsafe-Transport/SchoolSafe]`
-- **Frontend Web Repository**: `https://github.com/Schoolsafe-Transport/Frontend.git`
-- **Mobile Application Repository**: `https://github.com/Schoolsafe-Transport/Mobile-App.git`
+- **🎬 5-Minute Presentation Video**: [https://drive.google.com/file/d/1rAPgODBVxondDl2O74AAxkz4NDzEoVsq/view?usp=drivesdk](https://drive.google.com/file/d/1rAPgODBVxondDl2O74AAxkz4NDzEoVsq/view?usp=drivesdk)
+- **GitHub Organization**: [https://github.com/Schoolsafe-Transport](https://github.com/Schoolsafe-Transport)
+- **Frontend Web Repository**: [https://github.com/Schoolsafe-Transport/Frontend](https://github.com/Schoolsafe-Transport/Frontend)
+- **Mobile Application Repository**: [https://github.com/Schoolsafe-Transport/Mobile-App](https://github.com/Schoolsafe-Transport/Mobile-App)
 
 ### 2. Five-Minute Video Presentation
 - **Video Title**: SchoolSafe — Complete System Walkthrough & Live Safety Demonstration
-- **Video Link**: `[Insert 5-Minute Video Presentation Link Here — e.g., YouTube / Google Drive / Loom]`
-- **Video Scope**: Includes voice-over demonstration explaining project motivations, user roles, real-time GPS tracking, QR code boarding verification, payment review workflows, and platform administrative governance.
+- **Video Link**: [Watch the 5-Minute Video Presentation (Google Drive)](https://drive.google.com/file/d/1rAPgODBVxondDl2O74AAxkz4NDzEoVsq/view?usp=drivesdk)
+- **Direct Video URL**: `https://drive.google.com/file/d/1rAPgODBVxondDl2O74AAxkz4NDzEoVsq/view?usp=drivesdk`
+- **Video Scope**: Live voice-over demonstration explaining project motivations, user roles, real-time GPS tracking, QR code boarding verification, payment review workflows, and platform administrative governance.
 
 ### 3. Project Summary
 - **Project Name**: SchoolSafe
